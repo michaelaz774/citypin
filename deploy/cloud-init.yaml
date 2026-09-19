@@ -1,0 +1,9 @@
+#cloud-config
+# Hetzner first boot: Node 22 + Caddy, and file-descriptor headroom for a few thousand sockets.
+package_update: true
+packages: [caddy, rsync, curl, ca-certificates]
+runcmd:
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get install -y nodejs
+  - sed -i 's/^#\?DefaultLimitNOFILE=.*/DefaultLimitNOFILE=65536/' /etc/systemd/system.conf
+  - mkdir -p /opt/citypin

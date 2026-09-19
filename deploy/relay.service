@@ -1,0 +1,16 @@
+[Unit]
+Description=CityPin relay
+After=network.target
+[Service]
+WorkingDirectory=/opt/citypin
+ExecStart=/usr/bin/node --max-semi-space-size=64 server/index.mjs
+Restart=always
+RestartSec=2
+LimitNOFILE=65536
+Environment=PORT=8790
+Environment=PINS_PATH=/var/lib/citypin/pins.json
+Environment=MAX_PER_IP=64
+Environment=HOST=127.0.0.1
+Environment=ALLOWED_ORIGINS=https://citypin.pages.dev,.citypin.pages.dev
+[Install]
+WantedBy=multi-user.target
