@@ -15,6 +15,8 @@ export class Hud {
   private toastT = 0; private acc = 0;
   altBase = 0; // altitude is shown relative to the spawn's street level
   constructor(private roads: RoadIndex) {}
+  /** "Bloor St W · The Annex" for a spot: the nearest named road within 40 m and the neighbourhood. */
+  whereAt(x: number, z: number) { const r = this.roads.nearest(x, z, 40); const hood = neighbourhoodAt(x, z); return r?.road.n ? `${r.road.n} · ${hood}` : hood; }
   toast(msg: string, secs = 2.5) { this.el.toast.textContent = msg; this.el.toast.classList.add('show'); this.toastT = secs; }
   update(dt: number, player: Player, locked: boolean) {
     this.el.hint.classList.toggle('show', !locked);

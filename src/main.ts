@@ -180,7 +180,7 @@ async function main() {
     }
     const showReticle = entered && !uiOpen; if (showReticle !== reticleShown) { reticleShown = showReticle; reticleEl.classList.toggle('show', showReticle); }
     net.update(dt);
-    pins.update(dt, player);
+    pins.update(dt, player, camera, entered && !uiOpen);
     const online = net.online ? `${net.onlineCount} nearby · ${Math.round(net.rttMs)} ms` : 'offline';
     if (playersEl.textContent !== online) playersEl.textContent = online;
     if (sun) { sun.target.position.copy(player.pos); sun.position.copy(player.pos).add(new THREE.Vector3(-500, 800, 300)); }
