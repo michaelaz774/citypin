@@ -1,8 +1,8 @@
 // Binary wire protocol shared by server and client. Little-endian DataView, no allocations on hot paths.
 // Positions are int16 at 0.25 m (±8 km), angles are uint8 (0..255 => 0..2π).
 
-export const C2S = { STATE: 1, PING: 6, NAME: 10, WHO: 11 };
-export const S2C = { WELCOME: 16, SNAPSHOT: 17, PONG: 20, NAME: 24, ROSTER: 27 };
+export const C2S = { STATE: 1, PING: 6, NAME: 10, WHO: 11, PLACE_PIN: 12, UPVOTE_PIN: 13 };
+export const S2C = { WELCOME: 16, SNAPSHOT: 17, PONG: 20, NAME: 24, ROSTER: 27, PIN_ADD: 28, PIN_SYNC: 29, PIN_VOTE: 30 };
 export const NAME_MAX = 12, DEFAULT_NAME = 'Resident';
 export const FLAG = { FLYING: 1, MOVING: 4, AIRBORNE: 16 };
 export const POS_SCALE = 4; // units per metre
@@ -79,3 +79,57 @@ export function decodeRoster(dv, out) {
   for (let i = 0; i < n; i++) { out.push({ id: dv.getUint16(o, true), x: dv.getInt16(o + 2, true), z: dv.getInt16(o + 4, true) }); o += 6; }
   return out;
 }
+
+// ---- pins ----
+// A pin is a resident's note about a spot in the city: category, position (local metres, x/z only — height is resolved at
+// render time because the two world modes disagree on what "ground" is), a short note, a vote count and a timestamp.
+export const NOTE_MAX = 48; // UTF-8 bytes, not characters
+export const PIN_CATEGORIES = ['accessibility', 'safety', 'flooding', 'no shade', 'transit', 'green space', 'other'];
+export const PIN_REC = 20; // id u32, cat u8, x f32, z f32, votes u16, t u32, len u8 — followed by `len` note bytes
+/** Notes: control characters stripped, whitespace collapsed, cut to NOTE_MAX bytes on a character boundary. */
+export function cleanNote(s) {
+  s = String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+  let b = enc.encode(s); if (b.length <= NOTE_MAX) return s;
+  b = b.slice(0, NOTE_MAX); return dec.decode(b, { stream: true }).replace(/�+$/, '').trim(); // never end mid code point
+}
+export const noteBytes = (s) => enc.encode(cleanNote(s));
+export function writePin(dv, o, p, nb) {
+  dv.setUint32(o, p.id >>> 0, true); dv.setUint8(o + 4, p.cat & 255); dv.setFloat32(o + 5, p.x, true); dv.setFloat32(o + 9, p.z, true);
+  dv.setUint16(o + 13, Math.min(65535, p.votes | 0), true); dv.setUint32(o + 15, p.t >>> 0, true); dv.setUint8(o + 19, nb.length);
+  new Uint8Array(dv.buffer, dv.byteOffset + o + PIN_REC, nb.length).set(nb); return o + PIN_REC + nb.length;
+}
+export function readPin(dv, o, out) {
+  out.id = dv.getUint32(o, true); out.cat = dv.getUint8(o + 4); out.x = dv.getFloat32(o + 5, true); out.z = dv.getFloat32(o + 9, true);
+  out.votes = dv.getUint16(o + 13, true); out.t = dv.getUint32(o + 15, true);
+  const n = Math.max(0, Math.min(dv.getUint8(o + 19), dv.byteLength - o - PIN_REC));
+  out.note = cleanNote(dec.decode(new Uint8Array(dv.buffer, dv.byteOffset + o + PIN_REC, n))); return o + PIN_REC + n;
+}
+/** PLACE_PIN (c2s, ≤ 11+48 B): type, category u8, x f32, z f32, len u8, utf-8 note. */
+export function encodePlacePin(cat, x, z, note) {
+  const nb = noteBytes(note); const out = new Uint8Array(11 + nb.length), dv = new DataView(out.buffer);
+  dv.setUint8(0, C2S.PLACE_PIN); dv.setUint8(1, cat & 255); dv.setFloat32(2, x, true); dv.setFloat32(6, z, true); dv.setUint8(10, nb.length); out.set(nb, 11);
+  return out.buffer;
+}
+export function decodePlacePin(dv, out) {
+  out.cat = dv.getUint8(1); out.x = dv.getFloat32(2, true); out.z = dv.getFloat32(6, true);
+  const n = Math.max(0, Math.min(dv.getUint8(10), dv.byteLength - 11));
+  out.note = cleanNote(dec.decode(new Uint8Array(dv.buffer, dv.byteOffset + 11, n))); return out;
+}
+/** UPVOTE_PIN (c2s, 5 B): type, pin id u32. */
+export function encodeUpvotePin(id) { const b = new ArrayBuffer(5), dv = new DataView(b); dv.setUint8(0, C2S.UPVOTE_PIN); dv.setUint32(1, id >>> 0, true); return b; }
+export function decodeUpvotePin(dv) { return dv.getUint32(1, true); }
+/** PIN_ADD (s2c): type, then one pin record. Broadcast to everyone when a pin is accepted. */
+export function encodePinAdd(p) { const nb = noteBytes(p.note); const b = new ArrayBuffer(1 + PIN_REC + nb.length), dv = new DataView(b); dv.setUint8(0, S2C.PIN_ADD); writePin(dv, 1, p, nb); return b; }
+export function decodePinAdd(dv, out = {}) { readPin(dv, 1, out); return out; }
+/** PIN_SYNC (s2c): type, n u16, then n pin records. Sent on join so a newcomer sees every pin. */
+export function encodePinSync(pins) {
+  const parts = pins.map((p) => ({ p, nb: noteBytes(p.note) }));
+  const b = new ArrayBuffer(3 + parts.reduce((a, q) => a + PIN_REC + q.nb.length, 0)), dv = new DataView(b);
+  dv.setUint8(0, S2C.PIN_SYNC); dv.setUint16(1, parts.length, true); let o = 3;
+  for (const { p, nb } of parts) o = writePin(dv, o, p, nb);
+  return b;
+}
+export function decodePinSync(dv) { const n = dv.getUint16(1, true), out = []; let o = 3; for (let i = 0; i < n && o + PIN_REC <= dv.byteLength; i++) { const p = {}; o = readPin(dv, o, p); out.push(p); } return out; }
+/** PIN_VOTE (s2c, 7 B): type, pin id u32, votes u16. */
+export function encodePinVote(id, votes) { const b = new ArrayBuffer(7), dv = new DataView(b); dv.setUint8(0, S2C.PIN_VOTE); dv.setUint32(1, id >>> 0, true); dv.setUint16(5, Math.min(65535, votes | 0), true); return b; }
+export function decodePinVote(dv, out = {}) { out.id = dv.getUint32(1, true); out.votes = dv.getUint16(5, true); return out; }
