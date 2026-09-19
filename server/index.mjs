@@ -7,11 +7,13 @@ import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { World, ROSTER_TICKS } from './world.mjs';
-import { C2S, decodeState, decodeName, encodeWelcome, encodePong, encodeNameOf } from '../shared/protocol.mjs';
+import { PinStore } from './pinstore.mjs';
+import { C2S, decodeState, decodeName, decodePlacePin, decodeUpvotePin, encodeWelcome, encodePong, encodeNameOf, encodePinAdd, encodePinSync, encodePinVote } from '../shared/protocol.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = +(process.env.PORT ?? 8790);
 const TICK_MS = 100, SEND_PHASES = 5;
+const SAVE_MS = 30000, PIN_SYNC_CHUNK = 500;   // pins are flushed to disk at most every 30 s, and sent on join in chunks
 const MAX_BUFFERED = 64 * 1024;
 const HOST = process.env.HOST ?? '0.0.0.0';                 // production binds 127.0.0.1: Caddy is the only way in
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean); // empty = any (dev)
@@ -26,12 +28,14 @@ export function originAllowed(origin, allowed = ALLOWED_ORIGINS) {
 }
 const clientIp = (req) => (req.headers['x-forwarded-for']?.split(',')[0].trim()) || req.socket.remoteAddress || '?';
 
-export function createServer({ port = PORT, host = HOST, dataPath = path.join(__dirname, '../public/data/toronto.json'), log = console.log, allowedOrigins = ALLOWED_ORIGINS, maxPerIp = MAX_PER_IP, msgRate = MSG_RATE, msgBurst = MSG_BURST } = {}) {
+export function createServer({ port = PORT, host = HOST, dataPath = path.join(__dirname, '../public/data/toronto.json'), log = console.log, allowedOrigins = ALLOWED_ORIGINS, maxPerIp = MAX_PER_IP, msgRate = MSG_RATE, msgBurst = MSG_BURST, pinsPath = process.env.PINS_PATH ?? path.join(__dirname, '../pins.json') } = {}) {
   const data = JSON.parse(readFileSync(dataPath, 'utf8'));
   const cos = Math.cos((data.origin.lat * Math.PI) / 180);
   const toLocal = (lat, lon) => ({ x: (lon - data.origin.lon) * cos * 111320, z: -(lat - data.origin.lat) * 110574 });
   const sw = toLocal(data.bbox.south, data.bbox.west), ne = toLocal(data.bbox.north, data.bbox.east);
-  const world = new World({ minX: sw.x, maxX: ne.x, minZ: ne.z, maxZ: sw.z });
+  const store = new PinStore(pinsPath).load(log);          // pinsPath null: pins live for this process only
+  log(`[relay] ${store.pins.size} pins loaded from ${pinsPath ?? '(memory)'}`);
+  const world = new World({ minX: sw.x, maxX: ne.x, minZ: ne.z, maxZ: sw.z }, store);
 
   const sockets = new Map(); // id -> ws
   const tickTimes = []; let bytesOut = 0, bytesOutWindow = 0, lastWindow = performance.now(), bytesPerSec = 0;
@@ -41,7 +45,7 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
   const httpServer = http.createServer((req, res) => {
     if (req.url === '/metrics') {
       const m = { players: sockets.size, refusedOrigin: stats.refusedOrigin, refusedIp: stats.refusedIp, kickedRate: stats.kickedRate, tickP50: pct(tickTimes, 0.5), tickP95: pct(tickTimes, 0.95), tickP99: pct(tickTimes, 0.99),
-        loopDelayP99Ms: loopDelay.percentile(99) / 1e6, bytesOutPerSec: bytesPerSec, drops: world.stats.droppedForBackpressure, rssMB: Math.round(process.memoryUsage().rss / 1e6), tick: world.tick };
+        loopDelayP99Ms: loopDelay.percentile(99) / 1e6, bytesOutPerSec: bytesPerSec, pins: world.pinCount, drops: world.stats.droppedForBackpressure, rssMB: Math.round(process.memoryUsage().rss / 1e6), tick: world.tick };
       res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(m)); return;
     }
     if (req.url === '/players') { // ops view: who is online, where, and how stale
@@ -59,7 +63,9 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
       if ((perIp.get(clientIp(req)) ?? 0) >= maxPerIp) { stats.refusedIp++; return done(false, 429, 'too many connections'); }
       done(true);
     } });
-  const st = {};
+  const st = {}, pp = {};
+  /** Every pin, in PIN_SYNC packets of at most PIN_SYNC_CHUNK; the client merges them. Always at least one packet. */
+  const pinSyncPackets = () => { const all = world.allPins(), out = []; for (let i = 0; i < all.length; i += PIN_SYNC_CHUNK) out.push(encodePinSync(all.slice(i, i + PIN_SYNC_CHUNK))); if (!out.length) out.push(encodePinSync([])); return out; };
   const sendTo = (id, pkt) => { const ws = sockets.get(id); if (ws && ws.readyState === 1 && ws.bufferedAmount <= MAX_BUFFERED) { ws.send(pkt, { binary: true }); bytesOut += pkt.byteLength; bytesOutWindow += pkt.byteLength; } };
   const broadcast = (pkt) => { for (const id of sockets.keys()) sendTo(id, pkt); };
   wss.on('connection', (ws, req) => {
@@ -71,6 +77,7 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
     let tokens = msgBurst, lastFill = now; // token bucket: msgRate/s sustained, msgBurst at once
     ws._socket?.setNoDelay?.(true);
     ws.send(encodeWelcome(id), { binary: true });
+    for (const pkt of pinSyncPackets()) ws.send(pkt, { binary: true });
     ws.on('message', (buf, isBinary) => {
       if (!isBinary || buf.length < 1) return;
       const t = performance.now();
@@ -81,6 +88,8 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
         case C2S.STATE: if (buf.length >= 10) world.setState(id, decodeState(dv, st), t); break;
         case C2S.PING: if (buf.length >= 5) ws.send(encodePong(dv.getUint32(1, true)), { binary: true }); break;
         case C2S.NAME: { if (buf.length < 2) break; const nm = decodeName(dv); if (world.setName(id, nm.name, nm.token)) broadcast(encodeNameOf(id, world.nameOf(id))); break; }
+        case C2S.PLACE_PIN: if (buf.length >= 11) { const p = world.placePin(id, decodePlacePin(dv, pp), t); if (p) broadcast(encodePinAdd(p)); } break;
+        case C2S.UPVOTE_PIN: if (buf.length >= 5) { const pid = decodeUpvotePin(dv); const v = world.upvotePin(id, pid); if (v !== null) broadcast(encodePinVote(pid, v)); } break;
         case C2S.WHO: { if (buf.length < 3) break; const who = dv.getUint16(1, true); const n = world.nameOf(who); if (n !== null) ws.send(encodeNameOf(who, n), { binary: true }); break; }
       }
     });
@@ -90,7 +99,7 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
   });
 
   // absolute-time loop: schedule each tick at start + n*TICK_MS so drift never accumulates
-  let running = true; const t0 = performance.now(); let n = 0;
+  let running = true; const t0 = performance.now(); let n = 0, sinceSave = 0;
   const loop = () => {
     if (!running) return;
     const now = performance.now();
@@ -107,6 +116,7 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
         ws.send(pkt, { binary: true }); bytesOut += pkt.byteLength; bytesOutWindow += pkt.byteLength; } };
       i === 0 ? send() : setTimeout(send, (i * TICK_MS) / SEND_PHASES);
     });
+    if (++sinceSave * TICK_MS >= SAVE_MS) { sinceSave = 0; if (store.dirty) store.save(); }
     const dt = performance.now() - now; tickTimes.push(dt); if (tickTimes.length > 600) tickTimes.shift();
     if (now - lastWindow >= 1000) { bytesPerSec = bytesOutWindow / ((now - lastWindow) / 1000); bytesOutWindow = 0; lastWindow = now; }
     n++; const next = t0 + n * TICK_MS - performance.now();
@@ -117,9 +127,13 @@ export function createServer({ port = PORT, host = HOST, dataPath = path.join(__
     httpServer.listen(port, host, () => {
       log(`[relay] listening on ${host}:${httpServer.address().port} · ${world.maxPlayers} slots`);
       setTimeout(loop, TICK_MS);
-      resolve({ world, wss, httpServer, port: httpServer.address().port, close: () => new Promise((r) => { running = false; for (const s of sockets.values()) s.terminate(); wss.close(); httpServer.close(() => r()); }) });
+      resolve({ world, wss, httpServer, store, port: httpServer.address().port, save: () => store.save(),
+        close: () => new Promise((r) => { running = false; if (store.dirty) store.save(); for (const s of sockets.values()) s.terminate(); wss.close(); httpServer.close(() => r()); }) });
     });
   });
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) createServer();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) createServer().then((srv) => {
+  const bye = () => { srv.save(); process.exit(0); };            // pins are flushed before the process goes away
+  process.on('SIGTERM', bye); process.on('SIGINT', bye);
+});

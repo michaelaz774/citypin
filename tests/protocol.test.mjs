@@ -51,3 +51,38 @@ test('roster round-trips at 1 m', () => {
   const out = []; P.decodeRoster(new DataView(P.encodeRoster([{ id: 7, x: -650.4, z: -2130.6 }, { id: 9, x: 3999, z: 12 }])), out);
   assert.deepEqual(out, [{ id: 7, x: -650, z: -2131 }, { id: 9, x: 3999, z: 12 }]);
 });
+
+
+const bytes = (s) => new TextEncoder().encode(s).length;
+test('pin notes are cleaned and cut to 48 bytes on a character boundary', () => {
+  assert.equal(P.cleanNote('  curb\u0007   cut  '), 'curb cut');
+  assert.equal(P.cleanNote(null), '');
+  assert.equal(P.cleanNote('x'.repeat(47) + 'é'), 'x'.repeat(47), 'a cut never leaves half a code point');
+  assert.equal(P.cleanNote('é'.repeat(40)), 'é'.repeat(24));
+  assert.ok(bytes(P.cleanNote('é'.repeat(40))) <= P.NOTE_MAX);
+  assert.equal(P.encodePlacePin(0, 0, 0, 'x'.repeat(48)).byteLength, 59, 'the longest pin still fits the 64-byte relay cap');
+  assert.equal(P.PIN_CATEGORIES.length, 7);
+});
+
+test('place / upvote round-trip', () => {
+  const p = P.decodePlacePin(new DataView(P.encodePlacePin(3, -120.5, 88.25, ' flooded\u0001  underpass ')), {});
+  assert.deepEqual([p.cat, p.x, p.z, p.note], [3, -120.5, 88.25, 'flooded underpass']);
+  const empty = P.decodePlacePin(new DataView(P.encodePlacePin(0, 1, 2, '')), {});
+  assert.deepEqual([empty.note, empty.x, empty.z], ['', 1, 2]);
+  const u = new DataView(P.encodeUpvotePin(4000000000));
+  assert.equal(u.getUint8(0), P.C2S.UPVOTE_PIN); assert.equal(P.decodeUpvotePin(u), 4000000000);
+});
+
+test('pin add / sync / vote round-trip', () => {
+  const one = { id: 70000, cat: 6, x: -650.25, z: 2130.5, note: 'no curb cut', votes: 3, t: 1750000000 };
+  const two = { id: 1, cat: 2, x: 4, z: -4, note: 'côté est: trop étroit', votes: 1, t: 1750000001 };
+  const a = P.decodePinAdd(new DataView(P.encodePinAdd(one)));
+  assert.deepEqual([a.id, a.cat, a.x, a.z, a.note, a.votes, a.t], [70000, 6, -650.25, 2130.5, 'no curb cut', 3, 1750000000]);
+  const sync = P.decodePinSync(new DataView(P.encodePinSync([one, two])));
+  assert.equal(sync.length, 2);
+  assert.deepEqual(sync.map((p) => p.id), [70000, 1]);
+  assert.equal(sync[1].note, 'côté est: trop étroit', 'a multibyte note survives a packet holding several pins');
+  assert.equal(P.decodePinSync(new DataView(P.encodePinSync([]))).length, 0);
+  const v = new DataView(P.encodePinVote(70000, 9));
+  assert.equal(v.byteLength, 7); assert.deepEqual(P.decodePinVote(v), { id: 70000, votes: 9 });
+});

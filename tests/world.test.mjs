@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { World, RINGS, PLAYER_TIMEOUT_MS, MAX_Y, JUMP_COOLDOWN_MS } from '../server/world.mjs';
+import { World, RINGS, PLAYER_TIMEOUT_MS, MAX_Y, JUMP_COOLDOWN_MS, PIN_COOLDOWN_MS, PIN_MAX_DIST, MAX_PINS, MAX_PINS_PER_PLAYER } from '../server/world.mjs';
+import { PinStore } from '../server/pinstore.mjs';
 import { decodeSnapshot, decodeRoster, FLAG } from '../shared/protocol.mjs';
 
 const bounds = { minX: -4000, maxX: 4000, minZ: -4000, maxZ: 4000 };
@@ -92,4 +93,84 @@ test('movement sanity: walking faster than 60 m/s is a teleport, allowed once pe
   assert.equal(w.px[a - 1], 500, 'position unchanged by the dropped packet');
   assert.ok(w.setState(a, st(504, 0), 1400), 'normal movement still flows');
   assert.ok(w.setState(a, st(1500, 0), 1200 + JUMP_COOLDOWN_MS + 1), 'a teleport after the cooldown is fine');
+});
+
+const pin = (w, id, cat, x, z, note = '', now = 0) => w.placePin(id, { cat, x, z, note }, now);
+
+test('a pin needs a positioned player, a real category and a spot the reporter can see', () => {
+  const w = mk(); const a = w.join(0);
+  assert.equal(pin(w, a, 0, 0, 0, 'from nowhere'), null, 'no position reported yet');
+  w.setState(a, st(0, 0), 0);
+  assert.equal(pin(w, a, 7, 1, 1), null, 'category out of range');
+  assert.equal(pin(w, a, -1, 1, 1), null, 'category out of range');
+  assert.equal(pin(w, a, 1.5, 1, 1), null, 'category must be a whole number');
+  assert.equal(pin(w, a, 0, 0, PIN_MAX_DIST + 1), null, 'further than 150 m away');
+  assert.equal(pin(w, a, 0, NaN, 0), null, 'not a position');
+  assert.equal(pin(w, 4096 + 7, 0, 1, 1), null, 'unknown player');
+  const p = pin(w, a, 6, 0, PIN_MAX_DIST, '  broken\u0002   ramp ');
+  assert.ok(p, '150 m exactly is close enough');
+  assert.equal(p.note, 'broken ramp'); assert.equal(p.id, 1); assert.equal(p.cat, 6);
+  assert.equal(p.votes, 1, "the reporter's own vote counts");
+  assert.equal(w.pinCount, 1); assert.equal(w.allPins()[0], p);
+  const w2 = mk(); const b = w2.join(0); w2.setState(b, st(4150, 0), 0);
+  assert.equal(pin(w2, b, 0, 4250, 0), null, 'outside the map, however close the reporter stands');
+});
+
+test('one pin per resident every 5 s', () => {
+  const w = mk(); const a = w.join(0); w.setState(a, st(0, 0), 0);
+  assert.ok(pin(w, a, 0, 1, 1, 'first', 10000));
+  assert.equal(pin(w, a, 0, 2, 2, 'too soon', 12000), null);
+  assert.ok(pin(w, a, 0, 3, 3, 'later', 10000 + PIN_COOLDOWN_MS));
+  assert.equal(w.pinCount, 2);
+});
+
+test('caps: 50 pins per browser, 5000 in the city', () => {
+  assert.equal(MAX_PINS_PER_PLAYER, 50); assert.equal(MAX_PINS, 5000);
+  const w = mk(); w.maxPinsPerPlayer = 2;
+  const a = w.join(0); w.setState(a, st(0, 0), 0); w.setName(a, 'Aubrey', 555);
+  assert.ok(pin(w, a, 0, 0, 0, 'one', 0)); assert.ok(pin(w, a, 0, 0, 0, 'two', PIN_COOLDOWN_MS));
+  assert.equal(pin(w, a, 0, 0, 0, 'three', 2 * PIN_COOLDOWN_MS), null, 'per-browser cap');
+  w.leave(a); const again = w.join(0); w.setState(again, st(0, 0), 0); w.setName(again, 'Aubrey', 555);
+  assert.equal(pin(w, again, 0, 0, 0, 'reconnected', 3 * PIN_COOLDOWN_MS), null, 'the cap follows the browser token');
+  const w2 = mk(); w2.maxPins = 1; const b = w2.join(0); w2.setState(b, st(0, 0), 0);
+  assert.ok(pin(w2, b, 0, 0, 0, 'only', 0));
+  assert.equal(pin(w2, b, 0, 0, 0, 'full', PIN_COOLDOWN_MS), null, 'city cap');
+});
+
+test('one vote per browser per pin, the reporter included', () => {
+  const w = mk(); const a = w.join(0), b = w.join(0);
+  w.setName(a, 'Aubrey', 111); w.setName(b, 'West End', 222);
+  w.setState(a, st(0, 0), 0); w.setState(b, st(5, 5), 0);
+  const p = pin(w, a, 3, 4, 4, 'no shade for two blocks');
+  assert.equal(w.upvotePin(a, p.id), null, 'the reporter already counted');
+  assert.equal(w.upvotePin(b, p.id), 2);
+  assert.equal(w.upvotePin(b, p.id), null, 'once each');
+  assert.equal(w.upvotePin(b, 999), null, 'unknown pin');
+  w.leave(a); const again = w.join(0); w.setName(again, 'Aubrey', 111);
+  assert.equal(w.upvotePin(again, p.id), null, 'same browser token, same single vote');
+  assert.equal(p.votes, 2);
+});
+
+test('a store reloads its pins, keeps voters, and shrugs off a damaged file', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const os = await import('node:os'), path = await import('node:path');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'citypin-store-'));
+  try {
+    const file = path.join(dir, 'nested', 'pins.json');   // the directory does not exist yet
+    const w = mk(); const a = w.join(0); w.setName(a, 'Aubrey', 111); w.setState(a, st(0, 0), 0);
+    w.store.path = file;
+    const p = pin(w, a, 2, 3, 3, 'floods every storm');
+    assert.equal(w.store.dirty, true); assert.equal(w.store.save(), true); assert.equal(w.store.dirty, false);
+    const reloaded = new PinStore(file).load(() => {});
+    assert.equal(reloaded.nextId, p.id + 1);
+    assert.deepEqual([...reloaded.pins.get(p.id).voters], [111], 'voters survive the round trip');
+    assert.equal(reloaded.pins.get(p.id).note, 'floods every storm');
+    const w2 = new World(bounds, reloaded); w2.maxPinsPerPlayer = 1;
+    const b = w2.join(0); w2.setName(b, 'Aubrey', 111); w2.setState(b, st(0, 0), 0);
+    assert.equal(pin(w2, b, 0, 1, 1, 'over quota', 0), null, 'the per-browser count is rebuilt from the file');
+    writeFileSync(file, '{ not json at all');
+    const broken = new PinStore(file).load(() => {});
+    assert.equal(broken.pins.size, 0); assert.equal(broken.nextId, 1);
+    assert.equal(new PinStore(path.join(dir, 'absent.json')).load(() => {}).pins.size, 0, 'a missing file is an empty city');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

@@ -75,3 +75,59 @@ test('end to end: bad origins are refused, a flooding client is kicked, per-IP c
     const c = await open('http://ok.test'); c.close(); // slots freed once sockets close
   } finally { await srv.close(); }
 });
+
+test('end to end: a pin reaches everyone, votes count once per browser, a late joiner is synced', async () => {
+  const srv = await createServer({ port: 0, log: () => {}, pinsPath: null });
+  try {
+    const a = await connect(srv.port), b = await connect(srv.port);
+    await next(a, P.S2C.WELCOME); await next(b, P.S2C.WELCOME);
+    assert.equal(P.decodePinSync(await next(a, P.S2C.PIN_SYNC)).length, 0, 'an empty city still syncs');
+    await next(b, P.S2C.PIN_SYNC);
+    a.send(P.encodeName('Aubrey', 111)); b.send(P.encodeName('West End', 222));
+    a.send(P.encodeState(0, 0, 0, 0, 0, 0)); b.send(P.encodeState(10, 0, 10, 0, 0, 0));
+    a.send(P.encodePlacePin(2, 20, 30, ' floods  every storm '));
+    const pa = P.decodePinAdd(await next(a, P.S2C.PIN_ADD)), pb = P.decodePinAdd(await next(b, P.S2C.PIN_ADD));
+    assert.equal(pa.id, pb.id); assert.equal(pb.note, 'floods every storm');
+    assert.deepEqual([pa.cat, pa.x, pa.z, pa.votes], [2, 20, 30, 1]);
+    b.send(P.encodeUpvotePin(pa.id));
+    const va = P.decodePinVote(await next(a, P.S2C.PIN_VOTE)), vb = P.decodePinVote(await next(b, P.S2C.PIN_VOTE));
+    assert.deepEqual([va.id, va.votes], [pa.id, 2]); assert.deepEqual([vb.id, vb.votes], [pa.id, 2]);
+    a.send(P.encodeUpvotePin(pa.id)); // the reporter's vote is already in the count
+    await assert.rejects(next(a, P.S2C.PIN_VOTE, 300), /timeout/, 'a vote that changes nothing is not broadcast');
+    const c = await connect(srv.port); await next(c, P.S2C.WELCOME);
+    const pins = P.decodePinSync(await next(c, P.S2C.PIN_SYNC));
+    assert.equal(pins.length, 1);
+    assert.deepEqual([pins[0].id, pins[0].note, pins[0].votes], [pa.id, 'floods every storm', 2]);
+    const m = await fetch(`http://127.0.0.1:${srv.port}/metrics`).then((r) => r.json());
+    assert.equal(m.pins, 1);
+    a.close(); b.close(); c.close();
+  } finally { await srv.close(); }
+});
+
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
+test('end to end: pins outlive the process', async () => {
+  const dir = mkdtempSync(nodePath.join(os.tmpdir(), 'citypin-relay-'));
+  const pinsPath = nodePath.join(dir, 'state', 'pins.json'); // the directory is created on the first save
+  try {
+    const first = await createServer({ port: 0, log: () => {}, pinsPath });
+    let placed;
+    try {
+      const a = await connect(first.port); await next(a, P.S2C.WELCOME); await next(a, P.S2C.PIN_SYNC);
+      a.send(P.encodeName('Aubrey', 424242)); a.send(P.encodeState(2, 0, 2, 0, 0, 0));
+      a.send(P.encodePlacePin(4, 12, -8, 'no shelter at the stop'));
+      placed = P.decodePinAdd(await next(a, P.S2C.PIN_ADD));
+      a.close();
+    } finally { await first.close(); }
+    const second = await createServer({ port: 0, log: () => {}, pinsPath });
+    try {
+      const c = await connect(second.port); await next(c, P.S2C.WELCOME);
+      const pins = P.decodePinSync(await next(c, P.S2C.PIN_SYNC));
+      assert.equal(pins.length, 1);
+      assert.deepEqual([pins[0].id, pins[0].cat, pins[0].note, pins[0].votes], [placed.id, 4, 'no shelter at the stop', 1]);
+      assert.equal(second.world.store.nextId, placed.id + 1, 'ids carry on where they stopped');
+      c.close();
+    } finally { await second.close(); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
