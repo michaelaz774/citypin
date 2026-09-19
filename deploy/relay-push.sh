@@ -11,7 +11,7 @@ rsync -az -e "ssh -i $KEY -o StrictHostKeyChecking=accept-new" --delete \
   --include='package.json' --include='package-lock.json' --exclude='*' ./ root@$IP:/opt/citypin/
 scp -i "$KEY" deploy/relay.service root@$IP:/etc/systemd/system/relay.service
 $SSH "mkdir -p /var/lib/citypin && cd /opt/citypin && npm ci --omit=dev --no-audit --no-fund >/dev/null \
-  && printf '%s, 5-161-53-64.sslip.io {\n\treverse_proxy localhost:8790\n}\n' '$HOST' > /etc/caddy/Caddyfile \
+  && printf '%s {\n\treverse_proxy localhost:8790\n}\n' '$HOST' > /etc/caddy/Caddyfile \
   && systemctl daemon-reload && systemctl enable --now relay && systemctl restart relay && systemctl reload caddy"
 sleep 3
 $SSH "curl -s localhost:8790/metrics | cut -c1-80"; echo
