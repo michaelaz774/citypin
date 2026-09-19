@@ -52,17 +52,19 @@ export class Player {
 
   constructor(public camera: THREE.PerspectiveCamera, public ground: Ground, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }) {
     this.bounds = bounds;
-    this.avatar.setVisible(this.thirdPerson);
+    this.avatar.setVisible(this.thirdPerson); this.avatar.label.visible = false; // your own name tag is for other people
   }
 
   private updateCamera() {
     const p = this.pos;
     this.camera.rotation.set(0, 0, 0, 'YXZ'); this.camera.rotation.y = this.yaw; this.camera.rotation.x = this.pitch;
     if (!this.thirdPerson) { this.camera.position.set(p.x, p.y + EYE, p.z); return; }
-    // centred chase cam: straight back along the look direction, lifted clear of whatever surface is under it
-    const dist = 4.2, cp = Math.cos(this.pitch);
-    const cx = p.x + Math.sin(this.yaw) * cp * dist, cz = p.z + Math.cos(this.yaw) * cp * dist;
-    let cy = p.y + EYE - Math.sin(this.pitch) * dist + 0.45;
+    // over-the-shoulder chase cam: back along the look direction, a step to the right and a little high, so the
+    // character sits lower-left and the crosshair (screen centre) is never over their head or name tag
+    const dist = 4.2, side = 0.9, cp = Math.cos(this.pitch);
+    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw); // player's right-hand direction
+    const cx = p.x + Math.sin(this.yaw) * cp * dist + rx * side, cz = p.z + Math.cos(this.yaw) * cp * dist + rz * side;
+    let cy = p.y + EYE - Math.sin(this.pitch) * dist + 0.85;
     const gy = this.ground.topAt(cx, cz, cy + 30);
     if (gy !== null && cy < gy + 0.6) cy = gy + 0.6;
     this.camera.position.set(cx, cy, cz);
