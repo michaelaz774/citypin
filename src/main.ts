@@ -10,6 +10,7 @@ import { Teleporter } from './teleport';
 import { PhotoTiles } from './tiles';
 import { Net } from './net';
 import { Pins } from './pins';
+import { Planner } from './planner';
 import { TouchControls, isTouchDevice } from './touch';
 import * as P from '../shared/protocol.mjs';
 
@@ -129,7 +130,7 @@ async function main() {
     entered = true; loading.classList.add('hide'); if (!mobile) canvas.requestPointerLock?.();
     const nm = nameInput.value.trim(); if (nm) localStorage.setItem('player_name', nm); else localStorage.removeItem('player_name');
     net.setName(nm); player.avatar.setName(net.name);
-    hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · P pin the spot under the crosshair · U agree with a pin · F fly · M map', 6);
+    hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · P pin the spot under the crosshair · U agree with a pin · L planner panel · F fly · M map', 6);
   };
   if (clickedEarly) enterBtn.click();
 
@@ -143,7 +144,8 @@ async function main() {
   net.name = P.cleanName(nameInput.value); player.avatar.setName(net.name); // known before the socket opens; ENTER may change it
   net.ground = ground;
   const pins = new Pins(scene, net, hud, { osm: collider, tiles });
-  (window as any).__game = { renderer, scene, camera, player, collider, tiles, data, net, input, pins };
+  const planner = new Planner(pins, player, teleportTo); planner.onToggle = () => { tp.toggle(false); minimap.toggle(false); input.release(); };
+  (window as any).__game = { renderer, scene, camera, player, collider, tiles, data, net, input, pins, planner };
   const clock = new THREE.Clock();
   let frames = 0, fpsT = 0, edgeT = 0, reticleShown = false;
   const fpsEl = document.getElementById('fps')!, attribEl = document.getElementById('attrib-text')!, reticleEl = document.getElementById('reticle')!;
@@ -162,11 +164,12 @@ async function main() {
       }
       if (attribEl.textContent !== tiles.attribution) attribEl.textContent = tiles.attribution;
     }
-    const uiOpen = tp.open || minimap.open || pins.open;
+    const uiOpen = tp.open || minimap.open || pins.open || planner.open;
     if (entered) {
       if (input.just('KeyT')) { if (!tp.open) { minimap.toggle(false); input.release(); } tp.toggle(); }
       if (input.just('KeyM')) { if (!minimap.open) { tp.toggle(false); input.release(); } minimap.toggle(); }
-      if (input.just('Escape')) { tp.toggle(false); minimap.toggle(false); pins.close(); }
+      if (input.just('KeyL')) { if (!planner.open) { pins.close(); } planner.toggle(); }
+      if (input.just('Escape')) { tp.toggle(false); minimap.toggle(false); pins.close(); planner.toggle(false); }
       if (input.just('KeyR')) { teleportTo(SPAWN.x, SPAWN.z, "King's College Circle"); player.yaw = SPAWN.yaw; player.pitch = 0; }
       if (!uiOpen) player.update(dt, input);
       // pins: P reports the spot under the crosshair, U agrees with the pin we are standing next to
