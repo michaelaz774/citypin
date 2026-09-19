@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>CityPin — pin what needs fixing in Toronto</title>
+  <title>CityPin — report a street problem in downtown Toronto</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" />
   <style>
     :root { --ink: #111; --panel: rgba(255,255,255,.82); --accent: #ff3b30; }
     * { box-sizing: border-box; }
@@ -31,27 +32,54 @@
     #hint.show { opacity: 1; }
     #hint b { font-size: 22px; display: block; text-transform: none; letter-spacing: 0; }
     #hint kbd { background: #111; color: #fff; padding: 1px 6px; border-radius: 3px; }
-    #loading { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 30%, #1d2b3a 0%, #0e141b 60%, #05080b 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(4px, 1.4vh, 10px); z-index: 10; transition: opacity .4s; font-family: system-ui, sans-serif; padding: clamp(10px, 3vh, 28px) clamp(16px, 4vw, 32px); overflow-y: auto; text-align: center; --pin: #ff7a2f; }
+    /* ---- landing / splash: a civic-services page, CityPin's own brand ---- */
+    #loading { position: fixed; inset: 0; z-index: 10; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: #fff; color: #222; font-family: Roboto, system-ui, -apple-system, sans-serif; font-size: 16px; line-height: 1.5; text-align: left; transition: opacity .4s; --cp-blue: #165788; --cp-amber: #EC9F09; --cp-grey: #ebebeb; --cp-line: #d5d5d5; }
     #loading.hide { opacity: 0; pointer-events: none; }
-    #loading h1 { font-size: clamp(26px, min(8vw, 8vh), 64px); line-height: 1; margin: 0; letter-spacing: -.01em; font-weight: 800; }
-    #tagline { font-size: clamp(11px, min(2.6vw, 2.6vh), 16px); opacity: .82; margin: 0; max-width: 46ch; line-height: 1.35; padding: 0 4px; }
-    #loading-who { font-size: clamp(10px, min(2.1vw, 2.1vh), 13px); opacity: .6; margin: 0 0 clamp(2px, .8vh, 6px); }
-    #loading-controls { display: flex; flex-direction: column; gap: 2px; margin: 0 0 clamp(2px, .8vh, 6px); max-width: min(760px, 92vw); }
-    #loading-controls .ctrl-line { font-size: clamp(9px, min(1.9vw, 2vh), 12px); opacity: .55; letter-spacing: .01em; }
-    #loading kbd { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: var(--pin); padding: 1px 5px; border-radius: 4px; font: 700 .92em ui-monospace, Menlo, monospace; }
-    #ctrl-mobile { display: none; }
-    body.touch #ctrl-desktop { display: none; }
-    body.touch #ctrl-mobile { display: block; }
-    #loading p { margin: 0; opacity: .7; font-size: clamp(11px, min(2vw, 2vh), 13px); }
-    #enter { font: inherit; font-size: clamp(14px, 2.4vw, 18px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: clamp(10px, 2vh, 14px) clamp(22px, 5vw, 34px); border: 0; border-radius: 8px; background: var(--pin); color: #fff; cursor: pointer; }
-    #enter:hover { filter: brightness(1.1); }
-    #enter[hidden] { display: none; }
-    #enter:disabled { opacity: .6; cursor: progress; }
-    #namebox { display: flex; flex-direction: column; align-items: center; gap: clamp(3px, .8vh, 6px); margin: clamp(2px, .8vh, 6px) 0; }
-    #namebox label { font-size: clamp(9px, 1.6vw, 11px); letter-spacing: .22em; opacity: .75; }
-    #namebox input { font: inherit; font-size: clamp(14px, 3vw, 20px); font-weight: 700; text-align: center; width: clamp(160px, 40vw, 240px); padding: clamp(6px, 1.4vh, 10px) 12px; border-radius: 6px; border: 2px solid #3a4a5a; background: #14232f; color: #fff; outline: none; }
-    #namebox input:focus { border-color: var(--pin); }
-    #loading-footer { font-size: clamp(8px, 1.6vw, 10px); opacity: .4; margin-top: clamp(2px, 1vh, 10px); letter-spacing: .02em; }
+    #loading .cp-wrap { max-width: 1100px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+    #loading .cp-head { background: var(--cp-blue); color: #fff; }
+    #loading .cp-head .cp-wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding-top: 14px; padding-bottom: 14px; }
+    #loading .cp-brand { display: flex; align-items: center; gap: 8px; font-size: clamp(21px, 4.4vw, 28px); font-weight: 700; letter-spacing: .01em; }
+    #loading .cp-brand svg { width: 1.05em; height: 1.05em; flex: none; }
+    #loading .cp-headlink { font-size: 15px; color: #fff; }
+    #loading .cp-crumb { background: var(--cp-grey); border-bottom: 1px solid #dcdcdc; font-size: 14px; color: #555; }
+    #loading .cp-crumb .cp-wrap { padding-top: 11px; padding-bottom: 11px; }
+    #loading .cp-crumb b { color: var(--cp-blue); font-weight: 400; text-decoration: underline; }
+    #loading .cp-main { padding-bottom: 4px; }
+    #loading h1 { font-size: clamp(25px, 5.6vw, 36px); font-weight: 500; line-height: 1.15; color: #111; margin: clamp(18px, 4vw, 30px) 0 12px; }
+    #loading .cp-rule { border-top: 1px solid var(--cp-line); margin-bottom: 18px; }
+    #loading .cp-intro { max-width: 72ch; color: #333; margin-bottom: 20px; }
+    #loading .cp-panel { background: var(--cp-grey); padding: clamp(14px, 3vw, 20px); }
+    #loading .cp-panel label { display: block; font-size: 15px; color: #333; margin-bottom: 10px; }
+    #loading .cp-panelrow { display: flex; flex-wrap: wrap; gap: 10px; }
+    #loading #name-input { font: inherit; font-size: 16px; flex: 1 1 220px; min-width: 0; padding: 11px 12px; border: 1px solid #9a9a9a; border-radius: 0; background: #fff; color: #111; outline: none; }
+    #loading #name-input:focus { border-color: var(--cp-blue); box-shadow: 0 0 0 2px rgba(22,87,136,.3); }
+    #loading #enter { font: inherit; font-size: 18px; font-weight: 500; padding: 12px 30px; border: 0; border-radius: 0; background: var(--cp-blue); color: #fff; cursor: pointer; flex: 0 0 auto; }
+    #loading #enter:hover { background: #0f4269; }
+    #loading #enter[hidden] { display: none; }
+    #loading #enter:disabled { opacity: .55; cursor: progress; }
+    #loading p { margin: 12px 0 0; font-size: 14px; color: #555; }
+    #loading .cp-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: clamp(22px, 4vw, 32px) 0; }
+    #loading .cp-tile { display: flex; flex-direction: column; border: 1px solid var(--cp-line); }
+    #loading .cp-tile-ico { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: 20px 10px; background: var(--cp-grey); color: #111; }
+    #loading .cp-tile-ico svg { width: 40px; height: 40px; }
+    #loading .cp-tile-label { background: var(--cp-blue); color: #fff; text-align: center; padding: 13px 10px; font-size: 16px; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+    #loading .cp-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(20px, 4vw, 44px); border-top: 1px solid var(--cp-line); padding-top: clamp(20px, 3vw, 28px); }
+    #loading .cp-h2 { font-size: clamp(20px, 3.4vw, 24px); font-weight: 500; color: #111; margin: 0 0 10px; }
+    #loading .cp-h3 { font-size: 16px; font-weight: 700; color: #111; margin: 24px 0 8px; }
+    #loading ol { margin: 0; padding-left: 20px; }
+    #loading ol li { margin-bottom: 8px; font-size: 15px; color: #333; }
+    #loading .cp-cats { list-style: none; margin: 0; padding: 0; border-top: 1px solid #e3e3e3; }
+    #loading .cp-cats li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e3e3e3; font-size: 15px; color: #333; }
+    #loading .cp-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--d, #7d7d7d); }
+    #loading .cp-ctrl { font-size: 14px; color: #555; line-height: 1.7; }
+    #loading #ctrl-mobile { display: none; }
+    body.touch #loading #ctrl-desktop { display: none; }
+    body.touch #loading #ctrl-mobile { display: block; }
+    #loading kbd { background: #fff; border: 1px solid #b9b9b9; border-bottom-width: 2px; border-radius: 3px; color: var(--cp-blue); font: 700 .86em/1 ui-monospace, Menlo, monospace; padding: 2px 5px; }
+    #loading .cp-foot { background: var(--cp-grey); border-top: 1px solid var(--cp-line); color: #555; font-size: 13px; margin-top: clamp(22px, 4vw, 34px); }
+    #loading .cp-foot .cp-wrap { padding-top: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+    @media (max-width: 780px) { #loading .cp-tiles { grid-template-columns: repeat(2, 1fr); } #loading .cp-cols { grid-template-columns: 1fr; } }
+    @media (max-width: 430px) { #loading .cp-tiles { grid-template-columns: 1fr; } }
     #players { position: fixed; top: 16px; right: 16px; }
     #fps { position: fixed; top: 46px; right: 16px; }
     #attrib { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: none; letter-spacing: 0; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
@@ -158,17 +186,77 @@
   <canvas id="game"></canvas>
 
   <div id="loading">
-    <h1>CityPin</h1>
-    <div id="tagline">Walk downtown Toronto in 3D and pin the spot where the street fails — no meeting, no form.</div>
-    <div id="loading-who">Residents report. Planners receive a ranked map + GeoJSON export.</div>
-    <div id="loading-controls">
-      <div class="ctrl-line" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>P</kbd> drop a pin · <kbd>U</kbd> agree with a pin · <kbd>L</kbd> planner panel · <kbd>M</kbd> map · <kbd>F</kbd> fly</div>
-      <div class="ctrl-line" id="ctrl-mobile">d-pad move · drag look · PIN button</div>
+    <div class="cp-head"><div class="cp-wrap">
+      <div class="cp-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 23s8-8.4 8-14a8 8 0 1 0-16 0c0 5.6 8 14 8 14Z"/><circle cx="12" cy="9" r="3" fill="#165788"/></svg>CityPin</div>
+      <div class="cp-headlink">Open data · GeoJSON export</div>
+    </div></div>
+
+    <div class="cp-crumb"><div class="cp-wrap"><b>CityPin</b> &nbsp;/&nbsp; Report a street problem</div></div>
+
+    <div class="cp-wrap cp-main">
+      <h1>Report a street problem</h1>
+      <div class="cp-rule"></div>
+      <div class="cp-intro">CityPin lets you walk downtown Toronto in 3D and leave a note standing exactly where the street fails — no meeting, no form. Pins sync live to everyone and planners can export them straight into their GIS.</div>
+
+      <div class="cp-panel">
+        <label for="name-input">Your name (optional)</label>
+        <div class="cp-panelrow">
+          <input id="name-input" maxlength="12" placeholder="Resident" autocomplete="nickname" spellcheck="false" />
+          <button id="enter" hidden>Walk the city</button>
+        </div>
+      </div>
+      <p>Loading downtown Toronto…</p>
+
+      <div class="cp-tiles">
+        <div class="cp-tile">
+          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg></div>
+          <div class="cp-tile-label">Walk &amp; aim</div>
+        </div>
+        <div class="cp-tile">
+          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12a7 7 0 1 0-14 0c0 4.6 7 12 7 12Z"/><circle cx="12" cy="10" r="2.6"/></svg></div>
+          <div class="cp-tile-label">Drop a pin (P)</div>
+        </div>
+        <div class="cp-tile">
+          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.6 11.3 2A2.6 2.6 0 0 1 14 4.7V9h4.6a2.4 2.4 0 0 1 2.36 2.87l-1.28 6.4A2.6 2.6 0 0 1 17.13 20.4H7"/><rect x="2.6" y="10.2" width="4.4" height="10.2" rx="1"/></svg></div>
+          <div class="cp-tile-label">Agree with a pin (U)</div>
+        </div>
+        <div class="cp-tile">
+          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="3.6" width="18.8" height="16.8" rx="1.5"/><path d="M2.6 8.2h18.8M7 17.2v-5M12 17.2v-7M17 17.2v-3"/></svg></div>
+          <div class="cp-tile-label">Planner panel (L)</div>
+        </div>
+      </div>
+
+      <div class="cp-cols">
+        <div>
+          <div class="cp-h2">How it works</div>
+          <ol>
+            <li>Walk downtown Toronto in first person, straight in the browser.</li>
+            <li>Aim the crosshair at the spot that is failing.</li>
+            <li>Press <kbd>P</kbd>, pick a category, and type up to 48 characters.</li>
+            <li>Everyone walking the city sees your pin instantly.</li>
+            <li>Walk past someone else's pin and press <kbd>U</kbd> to agree with it.</li>
+            <li>Planners open <kbd>L</kbd> and export the ranked list as GeoJSON or CSV.</li>
+          </ol>
+        </div>
+        <div>
+          <div class="cp-h2">Categories</div>
+          <ul class="cp-cats">
+            <li><span class="cp-dot" style="--d:#2f6fdb"></span>Accessibility</li>
+            <li><span class="cp-dot" style="--d:#e5322d"></span>Safety</li>
+            <li><span class="cp-dot" style="--d:#1aa3a3"></span>Flooding</li>
+            <li><span class="cp-dot" style="--d:#f2a900"></span>No shade</li>
+            <li><span class="cp-dot" style="--d:#7a3fd1"></span>Transit</li>
+            <li><span class="cp-dot" style="--d:#2e9e4f"></span>Green space</li>
+            <li><span class="cp-dot" style="--d:#7d7d7d"></span>Other</li>
+          </ul>
+          <div class="cp-h3">Controls</div>
+          <div class="cp-ctrl" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>P</kbd> pin · <kbd>U</kbd> agree · <kbd>L</kbd> planner · <kbd>M</kbd> map · <kbd>T</kbd> address · <kbd>F</kbd> fly</div>
+          <div class="cp-ctrl" id="ctrl-mobile">d-pad move · drag look · PIN and AGREE buttons</div>
+        </div>
+      </div>
     </div>
-    <p>Loading downtown Toronto…</p>
-    <div id="namebox"><label for="name-input">YOUR NAME</label><input id="name-input" maxlength="12" placeholder="Resident" autocomplete="nickname" spellcheck="false" /></div>
-    <button id="enter" hidden>Walk the city</button>
-    <div id="loading-footer">Built for SDG 11.3 · city data © OpenStreetMap contributors</div>
+
+    <div class="cp-foot"><div class="cp-wrap">Built for SDG 11.3 · City data © OpenStreetMap contributors · Photorealistic tiles © Google · Not affiliated with the City of Toronto.</div></div>
   </div>
   <div class="hud" id="attrib" hidden><img alt="Google" src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" height="19" /> <span id="attrib-text">Map data: Google</span></div>
 
