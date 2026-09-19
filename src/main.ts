@@ -127,7 +127,7 @@ async function main() {
   if (photo) player.flying = true;
   setLoading(''); enterBtn.disabled = false;
   enterBtn.onclick = () => {
-    entered = true; loading.classList.add('hide'); if (!mobile) canvas.requestPointerLock?.();
+    entered = true; loading.classList.add('hide'); if (!mobile) (canvas.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => {}); // a browser that refuses the lock (headless, iframe) just runs unlocked
     const nm = nameInput.value.trim(); if (nm) localStorage.setItem('player_name', nm); else localStorage.removeItem('player_name');
     net.setName(nm); player.avatar.setName(net.name);
     hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · P pin the spot under the crosshair · U agree with a pin · L planner panel · F fly · M map', 6);
