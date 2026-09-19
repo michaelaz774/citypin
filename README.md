@@ -129,12 +129,7 @@ the relay, `connect-src` in `public/_headers`, and `VITE_WS_URL` at build time.
 - Pins are unauthenticated. Rate limits stop flooding, not abuse. A real deployment needs report-and-hide and a moderation queue, which are not built.
 - The photorealistic layer depends on a Google Map Tiles quota; the app falls back to the OSM city when it is refused.
 
-## Provenance and credits
-
-The 3D city engine (OpenStreetMap pipeline, renderer, first-person controls, multiplayer relay)
-is my own earlier personal project, imported in the first commit. Everything about pins, beacons,
-voting, persistence, the planner panel, the exports and the landing page was built during the
-hackathon; the commit history shows the split.
+## Credits
 
 - City data © OpenStreetMap contributors (ODbL). Photorealistic tiles © Google.
 - Resident character: "Casual" from Quaternius' Ultimate Modular Men pack (CC0).
