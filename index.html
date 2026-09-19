@@ -181,9 +181,13 @@
     #pin-bytes.full { color: #c62828; font-weight: 600; }
     #pin-box .row button { font: inherit; font-size: 15px; font-weight: 600; padding: 10px 18px; border-radius: 10px; border: 0; background: #165788; color: #fff; cursor: pointer; }
     #pin-box .row button.ghost { background: #eef1f4; color: #111; font-weight: 500; }
+    #planner-btn { position: fixed; top: 80px; right: 16px; pointer-events: auto; cursor: pointer; background: #165788; color: #fff; font-weight: 700; padding: 10px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); display: flex; align-items: center; gap: 8px; }
+    #planner-btn:hover { background: #1d6ba8; }
+    #planner-btn kbd { background: #fff; color: #165788; padding: 1px 7px; border-radius: 4px; font: inherit; }
+    body.touch #planner-btn { display: none; }
     #pin-prompt { position: fixed; bottom: 146px; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity .2s; font-size: 13px; }
     #pin-prompt.near { background: rgba(22,87,136,.92); color: #fff; }
-    #tright [data-key="KeyP"] { width: 84px; height: 48px; background: rgba(30,91,216,.7); }
+    #tright [data-key="TouchPin"] { width: 84px; height: 48px; background: rgba(30,91,216,.7); }
     #tright [data-key="KeyU"] { width: 84px; height: 48px; background: rgba(46,158,68,.7); }
     body.touch #pin-prompt { bottom: 40%; }
 </style>
@@ -220,7 +224,7 @@
         </div>
         <div class="cp-tile">
           <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12a7 7 0 1 0-14 0c0 4.6 7 12 7 12Z"/><circle cx="12" cy="10" r="2.6"/></svg></div>
-          <div class="cp-tile-label">Drop a pin (P)</div>
+          <div class="cp-tile-label">Click to drop a pin</div>
         </div>
         <div class="cp-tile">
           <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.6 11.3 2A2.6 2.6 0 0 1 14 4.7V9h4.6a2.4 2.4 0 0 1 2.36 2.87l-1.28 6.4A2.6 2.6 0 0 1 17.13 20.4H7"/><rect x="2.6" y="10.2" width="4.4" height="10.2" rx="1"/></svg></div>
@@ -228,7 +232,7 @@
         </div>
         <div class="cp-tile">
           <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="3.6" width="18.8" height="16.8" rx="1.5"/><path d="M2.6 8.2h18.8M7 17.2v-5M12 17.2v-7M17 17.2v-3"/></svg></div>
-          <div class="cp-tile-label">Planner panel (L)</div>
+          <div class="cp-tile-label">Planner panel (P)</div>
         </div>
       </div>
 
@@ -238,10 +242,10 @@
           <ol>
             <li>Walk downtown Toronto in first person, straight in the browser.</li>
             <li>Aim the crosshair at the spot that is failing.</li>
-            <li>Press <kbd>P</kbd>, pick a category, and type up to 48 characters.</li>
+            <li>Click, pick a category, and type up to 48 characters.</li>
             <li>Everyone walking the city sees your pin instantly.</li>
             <li>Walk past someone else's pin and press <kbd>U</kbd> to agree with it.</li>
-            <li>Planners open <kbd>L</kbd> and export the ranked list as GeoJSON or CSV.</li>
+            <li>Planners press <kbd>P</kbd> and export the ranked list as GeoJSON or CSV.</li>
           </ol>
         </div>
         <div>
@@ -256,7 +260,7 @@
             <li><span class="cp-dot" style="--d:#7d7d7d"></span>Other</li>
           </ul>
           <div class="cp-h3">Controls</div>
-          <div class="cp-ctrl" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>P</kbd> pin · <kbd>U</kbd> agree · <kbd>L</kbd> planner · <kbd>M</kbd> map · <kbd>T</kbd> address · <kbd>F</kbd> fly</div>
+          <div class="cp-ctrl" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>Click</kbd> pin · <kbd>U</kbd> agree · <kbd>P</kbd> planner · <kbd>M</kbd> map · <kbd>T</kbd> address · <kbd>F</kbd> fly</div>
           <div class="cp-ctrl" id="ctrl-mobile">d-pad move · drag look · PIN and AGREE buttons</div>
         </div>
       </div>
@@ -281,12 +285,12 @@
   <div id="touch" hidden>
     <div id="touchzones"></div>
     <div id="dpad"><span></span><span data-dir="KeyW">▲</span><span></span><span data-dir="KeyA">◀</span><span data-dir="KeyC"></span><span data-dir="KeyD">▶</span><span></span><span data-dir="KeyS">▼</span><span></span></div>
-    <div id="ttop"><button data-key="KeyV">CAM</button><button data-key="KeyM">MAP</button><button data-key="KeyL">PLAN</button><button data-key="KeyR">RST</button></div>
+    <div id="ttop"><button data-key="KeyV">CAM</button><button data-key="KeyM">MAP</button><button data-key="KeyP">PLAN</button><button data-key="KeyR">RST</button></div>
     <div id="tsprintwrap"><button id="tsprint">SPRINT</button></div>
-    <div id="tright"><button data-key="KeyP">PIN</button><button data-key="KeyU" hidden>AGREE</button><button id="tjump">JUMP</button><div id="tflight" hidden><button id="tup">▲</button><button data-key="KeyC" id="tdown">▼</button></div></div>
+    <div id="tright"><button data-key="TouchPin">PIN</button><button data-key="KeyU" hidden>AGREE</button><button id="tjump">JUMP</button><div id="tflight" hidden><button id="tup">▲</button><button data-key="KeyC" id="tdown">▼</button></div></div>
     <div id="rotate"><div>↻</div>Rotate your phone to landscape</div>
   </div>
-  <div class="hud panel" id="hint"><b>Click to start</b><kbd>W A S D</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> jump<br><kbd>Click</kbd>/<kbd>P</kbd> pin the spot under the crosshair &nbsp; <kbd>U</kbd> agree with a pin &nbsp; <kbd>L</kbd> planner panel<br><kbd>F</kbd> fly &nbsp; <kbd>Space</kbd>/<kbd>C</kbd> up/down &nbsp; <kbd>V</kbd> camera &nbsp; <kbd>Esc</kbd> release mouse</div>
+  <div class="hud panel" id="hint"><b>Click to start</b><kbd>W A S D</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> jump<br><kbd>Click</kbd> pin the spot under the crosshair &nbsp; <kbd>U</kbd> agree with a pin &nbsp; <kbd>P</kbd> planner panel<br><kbd>F</kbd> fly &nbsp; <kbd>Space</kbd>/<kbd>C</kbd> up/down &nbsp; <kbd>V</kbd> camera &nbsp; <kbd>Esc</kbd> release mouse</div>
 
   <div class="modal" id="planner"><div id="planner-box" tabindex="-1">
     <h2>Planner panel</h2>
@@ -300,6 +304,7 @@
   <div class="modal" id="bigmap-wrap"><p>Click anywhere to teleport · Esc to close</p><canvas id="bigmap"></canvas></div>
 
   <div id="reticle"></div>
+  <div class="hud" id="planner-btn" title="Open the planner panel"><span>▤ Planner panel</span><kbd>P</kbd></div>
   <div class="hud panel" id="pin-prompt"></div>
   <div class="modal" id="pin-compose"><div id="pin-box"><h2>Pin this spot</h2><p id="pin-where"></p><div id="pin-q">What needs fixing here? Everyone walking the city sees it, and planners can export it.</div><div id="pin-cats"></div><input id="pin-note" placeholder="Short note, e.g. no curb cut at this corner" autocomplete="off" spellcheck="false" /><div class="row"><span id="pin-bytes">0 / 48</span><button id="pin-cancel" class="ghost" type="button">Cancel</button><button id="pin-send" type="button">Place pin</button></div></div></div>
 

@@ -130,7 +130,7 @@ async function main() {
     entered = true; loading.classList.add('hide'); if (!mobile) (canvas.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => {}); // a browser that refuses the lock (headless, iframe) just runs unlocked
     const nm = nameInput.value.trim(); if (nm) localStorage.setItem('player_name', nm); else localStorage.removeItem('player_name');
     net.setName(nm); player.avatar.setName(net.name);
-    hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · click or P to pin the spot under the crosshair · U agree with a pin · L planner panel · F fly · M map', 6);
+    hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · click to pin the spot under the crosshair · U agree with a pin · P planner panel · F fly · M map', 6);
   };
   if (clickedEarly) enterBtn.click();
 
@@ -145,6 +145,7 @@ async function main() {
   net.ground = ground;
   const pins = new Pins(scene, net, hud, { osm: collider, tiles });
   const planner = new Planner(pins, player, teleportTo); planner.onToggle = () => { tp.toggle(false); minimap.toggle(false); input.release(); };
+  document.getElementById('planner-btn')!.onclick = () => { if (!entered) return; pins.close(); planner.toggle(); };
   (window as any).__game = { renderer, scene, camera, player, collider, tiles, data, net, input, pins, planner };
   const clock = new THREE.Clock();
   let frames = 0, fpsT = 0, edgeT = 0, reticleShown = false;
@@ -168,12 +169,12 @@ async function main() {
     if (entered) {
       if (input.just('KeyT')) { if (!tp.open) { minimap.toggle(false); input.release(); } tp.toggle(); }
       if (input.just('KeyM')) { if (!minimap.open) { tp.toggle(false); input.release(); } minimap.toggle(); }
-      if (input.just('KeyL')) { if (!planner.open) { pins.close(); } planner.toggle(); }
+      if (input.just('KeyP')) { if (!planner.open) { pins.close(); } planner.toggle(); }
       if (input.just('Escape')) { tp.toggle(false); minimap.toggle(false); pins.close(); planner.toggle(false); }
       if (input.just('KeyR')) { teleportTo(SPAWN.x, SPAWN.z, "King's College Circle"); player.yaw = SPAWN.yaw; player.pitch = 0; }
       if (!uiOpen) player.update(dt, input);
       // pins: P reports the spot under the crosshair, U agrees with the pin we are standing next to
-      if (!uiOpen && (input.just('KeyP') || input.fireJust)) pins.compose(camera, player, input); // P, or a click while the mouse is locked
+      if (!uiOpen && (input.fireJust || input.just('TouchPin'))) pins.compose(camera, player, input); // a click while the mouse is locked, or the PIN button on a phone
       if (!uiOpen && input.just('KeyU')) pins.upvoteNear();
       if (player.atEdge && edgeT <= 0) { hud.toast('Edge of the map', 1.5); edgeT = 3; } edgeT -= dt;
       touch?.setContext({ flying: player.flying });

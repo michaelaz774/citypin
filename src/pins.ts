@@ -245,7 +245,7 @@ export class Pins {
     const touch = document.body.classList.contains('touch');
     const text = near
       ? (this.voted.has(near.id) ? `✓ You agreed · ${near.votes} ${near.votes === 1 ? 'person agrees' : 'people agree'}` : `${touch ? 'AGREE' : 'U'} · agree with this pin · ${near.votes} ${near.votes === 1 ? 'person agrees' : 'people agree'}`)
-      : t ? `${touch ? 'PIN' : 'P'} · pin this spot` : '';
+      : t ? `${touch ? 'PIN' : 'Click'} · pin this spot` : '';
     if (near !== this.near || text !== this.promptShown) {
       this.near = near; this.promptShown = text;
       this.prompt.textContent = text; this.prompt.classList.toggle('near', !!near);
