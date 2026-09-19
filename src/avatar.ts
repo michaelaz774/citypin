@@ -4,11 +4,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 /**
- * A resident: a rigged humanoid (three.js' Soldier.glb — Idle/Walk/Run/TPose, ~1.83 m) tinted dark,
- * one AnimationMixer per avatar. Until it has loaded — or if it never does — each avatar is a low-poly
- * box stand-in built from the same palette, so nobody is ever invisible.
+ * A resident: a rigged humanoid (three.js' Soldier.glb — Idle/Walk/Run/TPose, ~1.83 m) dressed by shader
+ * as an everyday person — white tee, dark jeans, brown boots, short hair, no helmet — one AnimationMixer
+ * per avatar. Until it has loaded — or if it never does — each avatar is a low-poly box stand-in in the
+ * same outfit, so nobody is ever invisible.
  */
-const SKIN = 0x9a6a4a, DARK = 0x1b1512, HAIR = 0x120e0c, COAT = 0x141414, TRIM = 0xd4af37, PANTS = 0x1e1e22, SHOE = 0xf2f2f2;
+const SKIN = 0xe9c3a3, HAIR = 0x7a5538, SHIRT = 0xf2f2f2, BELT = 0x6b4423, PANTS = 0x2c313d, SHOE = 0x4d3221;
 const MODEL_URL = '/models/Soldier.glb';
 const LAND_T = 0.22; // landing squash duration
 
@@ -25,20 +26,17 @@ const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
 function geos() {
   if (bodyGeo && limbGeo) return { bodyGeo, limbGeo };
   const parts: THREE.BufferGeometry[] = [];
-  parts.push(box(0.46, 0.62, 0.28, COAT, 0, 1.13, 0));                        // torso
-  parts.push(box(0.50, 0.08, 0.32, TRIM, 0, 1.40, 0));                        // collar trim
-  parts.push(box(0.30, 0.12, 0.10, TRIM, 0, 0.97, 0.15));                     // pocket stripe
-  parts.push(colored(new THREE.TorusGeometry(0.13, 0.02, 6, 14), TRIM, 0, 1.36, 0.13)); // collar ring
-  parts.push(box(0.26, 0.26, 0.26, SKIN, 0, 1.62, 0));                        // head
-  parts.push(box(0.28, 0.10, 0.28, HAIR, 0, 1.73, 0));                        // hair
-  parts.push(box(0.27, 0.11, 0.27, DARK, 0, 1.53, 0.005));                    // jaw shading
-  parts.push(box(0.24, 0.05, 0.06, DARK, 0, 1.62, -0.10));                    // back of head shading
-  parts.push(box(0.04, 0.03, 0.02, 0x111111, -0.06, 1.66, 0.135));            // eyes
-  parts.push(box(0.04, 0.03, 0.02, 0x111111, 0.06, 1.66, 0.135));
-  parts.push(box(0.30, 0.14, 0.28, COAT, 0, 1.78, -0.04));                    // hood
+  parts.push(box(0.44, 0.60, 0.26, SHIRT, 0, 1.14, 0));                       // tee
+  parts.push(box(0.46, 0.06, 0.28, BELT, 0, 0.83, 0));                        // belt
+  parts.push(box(0.10, 0.06, 0.12, SKIN, 0, 1.47, 0));                        // neck
+  parts.push(box(0.26, 0.26, 0.26, SKIN, 0, 1.63, 0));                        // head
+  parts.push(box(0.28, 0.10, 0.28, HAIR, 0, 1.74, 0));                        // hair, short crop
+  parts.push(box(0.28, 0.14, 0.08, HAIR, 0, 1.64, -0.11));                    // back of the head
+  parts.push(box(0.04, 0.03, 0.02, 0x2b2b2b, -0.06, 1.66, 0.135));            // eyes
+  parts.push(box(0.04, 0.03, 0.02, 0x2b2b2b, 0.06, 1.66, 0.135));
   bodyGeo = mergeGeometries(parts, false)!;
   // limbs are pivoted at the shoulder / hip (origin at top)
-  const arm = mergeGeometries([box(0.13, 0.42, 0.13, COAT, 0, -0.21, 0), box(0.11, 0.10, 0.11, SKIN, 0, -0.47, 0)], false)!;
+  const arm = mergeGeometries([box(0.14, 0.16, 0.14, SHIRT, 0, -0.08, 0), box(0.11, 0.36, 0.11, SKIN, 0, -0.34, 0)], false)!; // short sleeve, bare arm
   const leg = mergeGeometries([box(0.17, 0.62, 0.17, PANTS, 0, -0.31, 0), box(0.18, 0.12, 0.26, SHOE, 0, -0.68, 0.04)], false)!;
   limbGeo = { arm, leg };
   return { bodyGeo, limbGeo };
@@ -59,12 +57,44 @@ function loadTemplate(): Promise<Template | null> {
     g.scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       m.castShadow = true; m.frustumCulled = false; // skinned bounds don't follow the pose
-      const mm = m.material as THREE.MeshStandardMaterial;
-      if (mm?.color) mm.color.setHex(/visor/i.test(mm.name) ? TRIM : 0x2c2c30); // texture × dark grey reads as a dark jacket; the visor picks up the trim
+      if (/visor/i.test(m.name)) { m.visible = false; return; } // no helmet visor on a resident
+      dress(m.material as THREE.MeshStandardMaterial);
     });
     return { scene: g.scene, clips: { idle, walk, run, tpose } };
   }).catch((e) => { console.warn('[avatar] rigged model unavailable, keeping the box stand-in:', e?.message ?? e); return null; });
   return templateP;
+}
+
+/**
+ * The Soldier texture is a uniform; drop it and colour by bind-pose region instead. The bind pose is a T-pose in
+ * centimetres with height on Z (0..183), arms along X (±92) and the face toward +Y, and `position` in the vertex
+ * shader is that pose before skinning, so the outfit follows every animation for free.
+ */
+function dress(mm: THREE.MeshStandardMaterial) {
+  if (!mm) return;
+  mm.map = null; mm.color.setHex(0xffffff); mm.roughness = 0.85; mm.metalness = 0;
+  const c = (hex: number) => { const k = new THREE.Color(hex).convertSRGBToLinear(); return `vec3(${k.r.toFixed(4)}, ${k.g.toFixed(4)}, ${k.b.toFixed(4)})`; };
+  mm.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace('void main() {', 'varying vec3 vBind;\nvoid main() {\n  vBind = position;');
+    shader.fragmentShader = shader.fragmentShader.replace('void main() {', `varying vec3 vBind;
+vec3 outfit(vec3 p) {
+  float h = p.z, ax = abs(p.x), front = p.y;
+  if (h < 2.0) return ${c(0x2a1c12)};                       // soles
+  if (h < 12.0) return ${c(SHOE)};                          // boots
+  if (h < 99.0) return ${c(PANTS)};                         // jeans
+  if (h < 104.0 && ax < 22.0) return ${c(BELT)};            // belt
+  if (h < 158.0) {                                          // torso and arms (T-pose: arms run along x)
+    if (ax < 38.0) return ${c(SHIRT)};                      // tee and short sleeves
+    return ${c(SKIN)};                                      // bare arms and hands
+  }
+  if (h < 163.0) return ax < 9.0 ? ${c(SKIN)} : ${c(SHIRT)}; // neck above the collar
+  if (h > 177.0 || front < -6.0) return ${c(HAIR)};         // crown and back of the head
+  return ${c(SKIN)};                                        // face
+}
+void main() {`).replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= outfit(vBind);');
+  };
+  mm.customProgramCacheKey = () => 'resident-outfit';
+  mm.needsUpdate = true;
 }
 
 export class Avatar {
