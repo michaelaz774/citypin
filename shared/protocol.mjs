@@ -90,7 +90,7 @@ export const PIN_REC = 20; // id u32, cat u8, x f32, z f32, votes u16, t u32, le
 export function cleanNote(s) {
   s = String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
   let b = enc.encode(s); if (b.length <= NOTE_MAX) return s;
-  b = b.slice(0, NOTE_MAX); return dec.decode(b, { stream: true }).replace(/�+$/, '').trim(); // never end mid code point
+  b = b.slice(0, NOTE_MAX); return new TextDecoder().decode(b).replace(/�+$/, '').trim(); // never end mid code point (a fresh decoder: the shared one must not be left mid-sequence)
 }
 export const noteBytes = (s) => enc.encode(cleanNote(s));
 export function writePin(dv, o, p, nb) {
