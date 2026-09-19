@@ -4,13 +4,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 /**
- * A resident: a rigged humanoid (three.js' Soldier.glb — Idle/Walk/Run/TPose, ~1.83 m) dressed by shader
- * as an everyday person — white tee, dark jeans, brown boots, short hair, no helmet — one AnimationMixer
- * per avatar. Until it has loaded — or if it never does — each avatar is a low-poly box stand-in in the
+ * A resident: a rigged humanoid (three.js' Xbot.glb, the plain Mixamo mannequin — idle/walk/run, ~1.8 m)
+ * dressed by shader as an everyday person — white tee, dark jeans, brown boots, short hair — one
+ * AnimationMixer per avatar. Until it has loaded — or if it never does — each avatar is a low-poly box stand-in in the
  * same outfit, so nobody is ever invisible.
  */
-const SKIN = 0xe9c3a3, HAIR = 0x7a5538, SHIRT = 0xf2f2f2, BELT = 0x6b4423, PANTS = 0x2c313d, SHOE = 0x4d3221;
-const MODEL_URL = '/models/Soldier.glb';
+const SKIN = 0xe8cbb4, HAIR = 0x7a5538, SHIRT = 0xf2f2f2, BELT = 0x6b4423, PANTS = 0x2c313d, SHOE = 0x4d3221;
+const MODEL_URL = '/models/Xbot.glb';
 const LAND_T = 0.22; // landing squash duration
 
 function colored(geo: THREE.BufferGeometry, hex: number, x = 0, y = 0, z = 0) {
@@ -52,13 +52,12 @@ function loadTemplate(): Promise<Template | null> {
   if (templateP) return templateP;
   templateP = new GLTFLoader().loadAsync(MODEL_URL).then((g) => {
     const find = (re: RegExp) => g.animations.find((c) => re.test(c.name));
-    const idle = find(/idle/i), walk = find(/walk/i), run = find(/run/i), tpose = find(/t.?pose/i) ?? idle;
+    const idle = find(/idle/i), walk = find(/walk/i), run = find(/run/i), tpose = find(/t.?pose/i) ?? new THREE.AnimationClip('tpose', -1, []); // no clip: an empty one lets the mixer fall back to the bind pose, which is a T-pose
     if (!idle || !walk || !run || !tpose) throw new Error('model lacks idle/walk/run clips');
     g.scene.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       m.castShadow = true; m.frustumCulled = false; // skinned bounds don't follow the pose
-      if (/visor/i.test(m.name)) { m.visible = false; return; } // no helmet visor on a resident
-      dress(m.material as THREE.MeshStandardMaterial);
+      dress(m.material as THREE.MeshStandardMaterial); // both the surface and the joint balls that bridge its seams
     });
     return { scene: g.scene, clips: { idle, walk, run, tpose } };
   }).catch((e) => { console.warn('[avatar] rigged model unavailable, keeping the box stand-in:', e?.message ?? e); return null; });
@@ -66,9 +65,9 @@ function loadTemplate(): Promise<Template | null> {
 }
 
 /**
- * The Soldier texture is a uniform; drop it and colour by bind-pose region instead. The bind pose is a T-pose in
- * centimetres with height on Z (0..183), arms along X (±92) and the face toward +Y, and `position` in the vertex
- * shader is that pose before skinning, so the outfit follows every animation for free.
+ * The mannequin is a plain grey surface; colour it by bind-pose region instead. The bind pose is a T-pose in metres
+ * with height on Y (0..1.81), arms along X (±0.9) and the face toward +Z, and `position` in the vertex shader is that
+ * pose before skinning, so the outfit follows every animation for free. Thresholds below are in centimetres.
  */
 function dress(mm: THREE.MeshStandardMaterial) {
   if (!mm) return;
@@ -78,7 +77,7 @@ function dress(mm: THREE.MeshStandardMaterial) {
     shader.vertexShader = shader.vertexShader.replace('void main() {', 'varying vec3 vBind;\nvoid main() {\n  vBind = position;');
     shader.fragmentShader = shader.fragmentShader.replace('void main() {', `varying vec3 vBind;
 vec3 outfit(vec3 p) {
-  float h = p.z, ax = abs(p.x), front = p.y;
+  float h = p.y * 100.0, ax = abs(p.x) * 100.0, front = p.z * 100.0;
   if (h < 2.0) return ${c(0x2a1c12)};                       // soles
   if (h < 12.0) return ${c(SHOE)};                          // boots
   if (h < 99.0) return ${c(PANTS)};                         // jeans
@@ -125,7 +124,7 @@ export class Avatar {
   /** Swap the box parts for a fresh clone of the rigged model with its own mixer; all clips run, blended by weight. */
   private attachRig(t: Template) {
     const model = cloneSkeleton(t.scene) as THREE.Group;
-    const pivot = new THREE.Group(); pivot.rotation.y = Math.PI; pivot.add(model); // Soldier faces -Z; the box (and setPose) face +Z
+    const pivot = new THREE.Group(); pivot.add(model); // the mannequin faces +Z, as the box (and setPose) do
     const mixer = new THREE.AnimationMixer(model);
     const actions = {} as Record<ClipName, THREE.AnimationAction>;
     for (const k of ['idle', 'walk', 'run', 'tpose'] as ClipName[]) { const a = mixer.clipAction(t.clips[k]); a.play(); a.setEffectiveWeight(k === 'idle' ? 1 : 0); actions[k] = a; }
