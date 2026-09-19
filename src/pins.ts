@@ -14,7 +14,7 @@ export interface Pin { id: number; cat: number; x: number; z: number; note: stri
 export const CATEGORY_COLOURS = [0x1e5bd8, 0xe53935, 0x0097a7, 0xff9500, 0x8e44ad, 0x2e9e44, 0x777777];
 const CATEGORIES: string[] = P.PIN_CATEGORIES;
 const REACH = 120, STEP = 1.5, LABEL_RANGE = 90, NEAR = 6, CAPACITY = 5000, RESOLVE_RANGE = 400;
-const BEAM_H = 240, BEAM_R = 0.5, RING_R = 1.6, PULSE_S = 1.6; // a beacon: a column of light this tall, a ring at its foot, a pulse when it lands
+const BEAM_H = 600, BEAM_R = 0.5, RING_R = 1.6, PULSE_S = 1.6; // a beacon: a column of light this tall, a ring at its foot, a pulse when it lands
 
 const _m = new THREE.Matrix4(), _c = new THREE.Color(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 const hex = (i: number) => '#' + _c.setHex(CATEGORY_COLOURS[i] ?? 0x777777).getHexString();
@@ -22,7 +22,7 @@ const hex = (i: number) => '#' + _c.setHex(CATEGORY_COLOURS[i] ?? 0x777777).getH
 /** Vertical alpha ramp for the beam: solid at the foot, gone at the top. */
 function beamTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas'); c.width = 2; c.height = 128; const g = c.getContext('2d')!;
-  const grad = g.createLinearGradient(0, 0, 0, 128); grad.addColorStop(0, 'rgba(255,255,255,0)'); grad.addColorStop(0.5, 'rgba(255,255,255,.6)'); grad.addColorStop(1, 'rgba(255,255,255,1)');
+  const grad = g.createLinearGradient(0, 0, 0, 128); grad.addColorStop(0, 'rgba(255,255,255,.2)'); grad.addColorStop(0.5, 'rgba(255,255,255,.7)'); grad.addColorStop(1, 'rgba(255,255,255,1)');
   g.fillStyle = grad; g.fillRect(0, 0, 2, 128);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
@@ -106,7 +106,7 @@ export class Pins {
 
   constructor(scene: THREE.Scene, private net: Net, private hud: Hud, private ground: { osm: CityCollider; tiles: PhotoTiles | null }) {
     const beam = new THREE.CylinderGeometry(BEAM_R, BEAM_R * 1.6, BEAM_H, 16, 1, true); beam.translate(0, BEAM_H / 2, 0);
-    this.beams = new THREE.InstancedMesh(beam, new THREE.MeshBasicMaterial({ map: beamTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0.55 }), CAPACITY);
+    this.beams = new THREE.InstancedMesh(beam, new THREE.MeshBasicMaterial({ map: beamTexture(), transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide, opacity: 0.5, fog: false }), CAPACITY);
     const ring = new THREE.PlaneGeometry(RING_R * 2, RING_R * 2); ring.rotateX(-Math.PI / 2);
     this.rings = new THREE.InstancedMesh(ring, new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false, opacity: 0.9 }), CAPACITY);
     for (const im of [this.beams, this.rings]) { im.count = 0; im.frustumCulled = false; im.renderOrder = 12; this.group.add(im); }
@@ -225,8 +225,9 @@ export class Pins {
       const age = this.born.has(p.id) ? this.clock - this.born.get(p.id)! : PULSE_S; if (age >= PULSE_S) this.born.delete(p.id);
       const pulse = 1 + 2.5 * Math.max(0, 1 - age / PULSE_S) ** 2; // lands wide and bright, settles in a second and a half
       const breathe = 1 + 0.08 * Math.sin(this.clock * 2.2 + p.id);
+      const far = Math.max(1, dist / 70); // a beacon a kilometre away is still a few pixels wide
       _c.setHex(CATEGORY_COLOURS[p.cat] ?? 0x777777);
-      _m.compose(_p.set(p.x, y, p.z), _q.identity(), _s.set(pulse * breathe, 1, pulse * breathe)); this.beams.setMatrixAt(n, _m); this.beams.setColorAt(n, _c);
+      _m.compose(_p.set(p.x, y, p.z), _q.identity(), _s.set(pulse * breathe * far, 1, pulse * breathe * far)); this.beams.setMatrixAt(n, _m); this.beams.setColorAt(n, _c);
       _m.compose(_p.set(p.x, y + 0.06, p.z), _q, _s.set(pulse * breathe * 1.3, 1, pulse * breathe * 1.3)); this.rings.setMatrixAt(n, _m); this.rings.setColorAt(n, _c);
       n++;
       if (label) { label.visible = dist < LABEL_RANGE; label.position.set(p.x, y + 2.4, p.z); label.material.opacity = Math.min(1, (LABEL_RANGE - dist) / 25); }
