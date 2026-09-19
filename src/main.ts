@@ -9,6 +9,7 @@ import { Minimap } from './minimap';
 import { Teleporter } from './teleport';
 import { PhotoTiles } from './tiles';
 import { Net } from './net';
+import { Pins } from './pins';
 import { TouchControls, isTouchDevice } from './touch';
 import * as P from '../shared/protocol.mjs';
 
@@ -115,6 +116,7 @@ async function main() {
   const minimap = new Minimap(data, player, (x, z) => teleportTo(x, z), function* () { // everyone live on the map
     for (const r of net.remotes.values()) yield { x: r.avatar.group.position.x, z: r.avatar.group.position.z, kind: 'player' as const }; // nearby: smooth
     for (const [id, p] of net.roster) if (!net.remotes.has(id)) yield { x: p.x, z: p.z, kind: 'player' as const };           // far away: last broadcast
+    yield* pins.markers();
   });
   const tp = new Teleporter(data, teleportTo);
   const playersEl = document.getElementById('players')!;
@@ -127,7 +129,7 @@ async function main() {
     entered = true; loading.classList.add('hide'); if (!mobile) canvas.requestPointerLock?.();
     const nm = nameInput.value.trim(); if (nm) localStorage.setItem('player_name', nm); else localStorage.removeItem('player_name');
     net.setName(nm); player.avatar.setName(net.name);
-    hud.toast(mobile ? 'D-pad: move · SPRINT toggles running · drag: look · double-tap JUMP: fly, double-tap ▲: land' : 'WASD move · F fly · V camera · M map · T address', 6);
+    hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · P pin the spot under the crosshair · U agree with a pin · F fly · M map', 6);
   };
   if (clickedEarly) enterBtn.click();
 
@@ -140,10 +142,11 @@ async function main() {
   const net = new Net(scene, wsUrl(), player);
   net.name = P.cleanName(nameInput.value); player.avatar.setName(net.name); // known before the socket opens; ENTER may change it
   net.ground = ground;
-  (window as any).__game = { renderer, scene, camera, player, collider, tiles, data, net, input };
+  const pins = new Pins(scene, net, hud, { osm: collider, tiles });
+  (window as any).__game = { renderer, scene, camera, player, collider, tiles, data, net, input, pins };
   const clock = new THREE.Clock();
-  let frames = 0, fpsT = 0, edgeT = 0;
-  const fpsEl = document.getElementById('fps')!, attribEl = document.getElementById('attrib-text')!;
+  let frames = 0, fpsT = 0, edgeT = 0, reticleShown = false;
+  const fpsEl = document.getElementById('fps')!, attribEl = document.getElementById('attrib-text')!, reticleEl = document.getElementById('reticle')!;
   const frame = () => {
     const dt = Math.min(0.05, clock.getDelta());
     if (tiles) {
@@ -159,17 +162,22 @@ async function main() {
       }
       if (attribEl.textContent !== tiles.attribution) attribEl.textContent = tiles.attribution;
     }
-    const uiOpen = tp.open || minimap.open;
+    const uiOpen = tp.open || minimap.open || pins.open;
     if (entered) {
       if (input.just('KeyT')) { if (!tp.open) { minimap.toggle(false); input.release(); } tp.toggle(); }
       if (input.just('KeyM')) { if (!minimap.open) { tp.toggle(false); input.release(); } minimap.toggle(); }
-      if (input.just('Escape')) { tp.toggle(false); minimap.toggle(false); }
+      if (input.just('Escape')) { tp.toggle(false); minimap.toggle(false); pins.close(); }
       if (input.just('KeyR')) { teleportTo(SPAWN.x, SPAWN.z, "King's College Circle"); player.yaw = SPAWN.yaw; player.pitch = 0; }
       if (!uiOpen) player.update(dt, input);
+      // pins: P reports the spot under the crosshair, U agrees with the pin we are standing next to
+      if (!uiOpen && input.just('KeyP')) pins.compose(camera, player, input);
+      if (!uiOpen && input.just('KeyU')) pins.upvoteNear();
       if (player.atEdge && edgeT <= 0) { hud.toast('Edge of the map', 1.5); edgeT = 3; } edgeT -= dt;
       touch?.setContext({ flying: player.flying });
     }
+    const showReticle = entered && !uiOpen; if (showReticle !== reticleShown) { reticleShown = showReticle; reticleEl.classList.toggle('show', showReticle); }
     net.update(dt);
+    pins.update(dt, player);
     const online = net.online ? `${net.onlineCount} nearby · ${Math.round(net.rttMs)} ms` : 'offline';
     if (playersEl.textContent !== online) playersEl.textContent = online;
     if (sun) { sun.target.position.copy(player.pos); sun.position.copy(player.pos).add(new THREE.Vector3(-500, 800, 300)); }

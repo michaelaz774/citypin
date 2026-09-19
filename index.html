@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>CityPin</title>
+  <title>CityPin — pin what needs fixing in Toronto</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>" />
   <style>
     :root { --ink: #111; --panel: rgba(255,255,255,.82); --accent: #ff3b30; }
@@ -31,19 +31,27 @@
     #hint.show { opacity: 1; }
     #hint b { font-size: 22px; display: block; text-transform: none; letter-spacing: 0; }
     #hint kbd { background: #111; color: #fff; padding: 1px 6px; border-radius: 3px; }
-    #loading { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 30%, #1d2b3a 0%, #0e141b 60%, #05080b 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 10; transition: opacity .4s; font-family: system-ui, sans-serif; }
+    #loading { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 30%, #1d2b3a 0%, #0e141b 60%, #05080b 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(4px, 1.4vh, 10px); z-index: 10; transition: opacity .4s; font-family: system-ui, sans-serif; padding: clamp(10px, 3vh, 28px) clamp(16px, 4vw, 32px); overflow-y: auto; text-align: center; --pin: #ff7a2f; }
     #loading.hide { opacity: 0; pointer-events: none; }
-    #loading h1 { font-size: clamp(44px, 9vw, 88px); line-height: 1; margin: 0; letter-spacing: -.02em; }
-    #tagline { font-size: clamp(14px, 2vw, 18px); opacity: .75; margin: 0 0 22px; text-align: center; padding: 0 20px; }
-    #loading p { margin: 0; opacity: .7; }
-    #enter { font: inherit; font-size: 18px; font-weight: 700; letter-spacing: .16em; padding: 14px 34px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+    #loading h1 { font-size: clamp(26px, min(8vw, 8vh), 64px); line-height: 1; margin: 0; letter-spacing: -.01em; font-weight: 800; }
+    #tagline { font-size: clamp(11px, min(2.6vw, 2.6vh), 16px); opacity: .82; margin: 0; max-width: 46ch; line-height: 1.35; padding: 0 4px; }
+    #loading-who { font-size: clamp(10px, min(2.1vw, 2.1vh), 13px); opacity: .6; margin: 0 0 clamp(2px, .8vh, 6px); }
+    #loading-controls { display: flex; flex-direction: column; gap: 2px; margin: 0 0 clamp(2px, .8vh, 6px); max-width: min(760px, 92vw); }
+    #loading-controls .ctrl-line { font-size: clamp(9px, min(1.9vw, 2vh), 12px); opacity: .55; letter-spacing: .01em; }
+    #loading kbd { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: var(--pin); padding: 1px 5px; border-radius: 4px; font: 700 .92em ui-monospace, Menlo, monospace; }
+    #ctrl-mobile { display: none; }
+    body.touch #ctrl-desktop { display: none; }
+    body.touch #ctrl-mobile { display: block; }
+    #loading p { margin: 0; opacity: .7; font-size: clamp(11px, min(2vw, 2vh), 13px); }
+    #enter { font: inherit; font-size: clamp(14px, 2.4vw, 18px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: clamp(10px, 2vh, 14px) clamp(22px, 5vw, 34px); border: 0; border-radius: 8px; background: var(--pin); color: #fff; cursor: pointer; }
     #enter:hover { filter: brightness(1.1); }
     #enter[hidden] { display: none; }
     #enter:disabled { opacity: .6; cursor: progress; }
-    #namebox { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 6px; }
-    #namebox label { font-size: 11px; letter-spacing: .25em; opacity: .75; }
-    #namebox input { font: inherit; font-size: 20px; font-weight: 700; text-align: center; width: 240px; padding: 10px 12px; border-radius: 6px; border: 2px solid #3a4a5a; background: #14232f; color: #fff; outline: none; }
-    #namebox input:focus { border-color: var(--accent); }
+    #namebox { display: flex; flex-direction: column; align-items: center; gap: clamp(3px, .8vh, 6px); margin: clamp(2px, .8vh, 6px) 0; }
+    #namebox label { font-size: clamp(9px, 1.6vw, 11px); letter-spacing: .22em; opacity: .75; }
+    #namebox input { font: inherit; font-size: clamp(14px, 3vw, 20px); font-weight: 700; text-align: center; width: clamp(160px, 40vw, 240px); padding: clamp(6px, 1.4vh, 10px) 12px; border-radius: 6px; border: 2px solid #3a4a5a; background: #14232f; color: #fff; outline: none; }
+    #namebox input:focus { border-color: var(--pin); }
+    #loading-footer { font-size: clamp(8px, 1.6vw, 10px); opacity: .4; margin-top: clamp(2px, 1vh, 10px); letter-spacing: .02em; }
     #players { position: fixed; top: 16px; right: 16px; }
     #fps { position: fixed; top: 46px; right: 16px; }
     #attrib { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: none; letter-spacing: 0; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
@@ -57,6 +65,32 @@
     #tp-landmarks { display: flex; flex-wrap: wrap; gap: 6px; }
     #tp-landmarks button { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid #ccc; background: #f6f6f6; border-radius: 999px; cursor: pointer; }
     #tp-landmarks button:hover { background: #111; color: #fff; }
+    #planner-box { background: #fff; padding: 20px; border-radius: 10px; width: min(820px, 94vw); font-family: system-ui, sans-serif; outline: none; }
+    #planner-box h2 { margin: 0 0 4px; font-size: 16px; }
+    #pl-sum { font-size: 13px; opacity: .65; margin-bottom: 12px; }
+    #pl-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    #pl-cats button { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid #ccc; background: #f6f6f6; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    #pl-cats button[data-cat]:not([data-cat="-1"])::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, #757575); }
+    #pl-cats button:hover { background: #ececec; }
+    #pl-cats button.on { background: #111; color: #fff; border-color: #111; }
+    #pl-sortwrap { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; margin-bottom: 8px; }
+    #pl-sort { font: inherit; font-size: 13px; letter-spacing: 0; text-transform: none; padding: 5px 12px; border: 1px solid #111; background: #fff; border-radius: 6px; cursor: pointer; }
+    #pl-sort:hover { background: #111; color: #fff; }
+    #pl-list { max-height: 60vh; overflow-y: auto; border-top: 1px solid #eee; }
+    .pl-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; font-size: 13px; padding: 9px 4px; background: none; border: 0; border-bottom: 1px solid #eee; cursor: pointer; }
+    .pl-row:hover { background: #f4f7fa; }
+    .pl-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+    .pl-cat { flex: none; width: 110px; opacity: .65; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+    .pl-note { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pl-note i { opacity: .4; }
+    .pl-votes { flex: none; width: 52px; text-align: right; font-weight: 700; }
+    .pl-dist { flex: none; width: 66px; text-align: right; opacity: .65; }
+    .pl-when { flex: none; width: 84px; text-align: right; opacity: .5; font-size: 12px; }
+    .pl-empty { margin: 0; padding: 28px 4px; font-size: 13px; opacity: .55; text-align: center; }
+    #pl-actions { display: flex; gap: 8px; margin-top: 14px; }
+    #pl-actions button { font: inherit; font-size: 13px; padding: 8px 14px; border: 1px solid #111; background: #fff; border-radius: 6px; cursor: pointer; }
+    #pl-actions button:hover { background: #111; color: #fff; }
+    #pl-close { margin-left: auto; }
     #bigmap { max-width: 92vw; max-height: 88vh; border-radius: 8px; cursor: crosshair; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
     #bigmap-wrap p { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin: 0; }
       /* ---- touch controls (phones), Minecraft layout ---- */
@@ -97,7 +131,27 @@
     body.touch #bottomright { top: max(40px, calc(env(safe-area-inset-top) + 32px)); left: max(10px, env(safe-area-inset-left)); right: auto; bottom: auto; z-index: 3; }
     body.touch #minimap { width: 96px; height: 96px; }
     body.touch #attrib { bottom: max(2px, env(safe-area-inset-bottom)); }
-    body.touch #enter { font-size: 16px; padding: 12px 28px; }
+    /* ---- pins: the always-on crosshair, the compose dialog, the "agree" prompt ---- */
+    #reticle { position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; opacity: 0; transition: opacity .15s; pointer-events: none; z-index: 3; filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000); }
+    #reticle::before, #reticle::after { content: ''; position: absolute; background: #fff; }
+    #reticle::before { left: 50%; top: 0; width: 2px; height: 100%; margin-left: -1px; }
+    #reticle::after { top: 50%; left: 0; height: 2px; width: 100%; margin-top: -1px; }
+    #reticle.show { opacity: 1; }
+    #pin-box { background: #fff; padding: 20px; border-radius: 10px; width: min(520px, 92vw); font-family: system-ui, sans-serif; }
+    #pin-box h2 { margin: 0 0 4px; font-size: 16px; }
+    #pin-box p { margin: 0 0 12px; font-size: 13px; opacity: .7; }
+    #pin-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    #pin-cats button { font: inherit; font-size: 13px; padding: 6px 12px; border: 2px solid var(--cat, #999); background: #fff; color: #111; border-radius: 999px; cursor: pointer; }
+    #pin-cats button.on { background: var(--cat, #111); color: #fff; }
+    #pin-note { width: 100%; font-size: 16px; padding: 10px 12px; border: 2px solid #111; border-radius: 6px; outline: none; font-family: system-ui, sans-serif; }
+    #pin-box .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    #pin-bytes { flex: 1; font-size: 12px; opacity: .6; }
+    #pin-box .row button { font: inherit; font-size: 14px; padding: 8px 16px; border-radius: 6px; border: 0; background: #111; color: #fff; cursor: pointer; }
+    #pin-box .row button.ghost { background: #eee; color: #111; }
+    #pin-prompt { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity .2s; }
+    #tright [data-key="KeyP"] { width: 84px; height: 48px; background: rgba(30,91,216,.7); }
+    #tright [data-key="KeyU"] { width: 84px; height: 48px; background: rgba(46,158,68,.7); }
+    body.touch #pin-prompt { bottom: 40%; }
 </style>
 </head>
 <body>
@@ -105,10 +159,16 @@
 
   <div id="loading">
     <h1>CityPin</h1>
-    <div id="tagline">Walk downtown Toronto and pin what needs fixing.</div>
+    <div id="tagline">Walk downtown Toronto in 3D and pin the spot where the street fails — no meeting, no form.</div>
+    <div id="loading-who">Residents report. Planners receive a ranked map + GeoJSON export.</div>
+    <div id="loading-controls">
+      <div class="ctrl-line" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>P</kbd> drop a pin · <kbd>U</kbd> agree with a pin · <kbd>L</kbd> planner panel · <kbd>M</kbd> map · <kbd>F</kbd> fly</div>
+      <div class="ctrl-line" id="ctrl-mobile">d-pad move · drag look · PIN button</div>
+    </div>
     <p>Loading downtown Toronto…</p>
     <div id="namebox"><label for="name-input">YOUR NAME</label><input id="name-input" maxlength="12" placeholder="Resident" autocomplete="nickname" spellcheck="false" /></div>
-    <button id="enter" hidden>ENTER THE CITY</button>
+    <button id="enter" hidden>Walk the city</button>
+    <div id="loading-footer">Built for SDG 11.3 · city data © OpenStreetMap contributors</div>
   </div>
   <div class="hud" id="attrib" hidden><img alt="Google" src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" height="19" /> <span id="attrib-text">Map data: Google</span></div>
 
@@ -127,15 +187,27 @@
   <div id="touch" hidden>
     <div id="touchzones"></div>
     <div id="dpad"><span></span><span data-dir="KeyW">▲</span><span></span><span data-dir="KeyA">◀</span><span data-dir="KeyC"></span><span data-dir="KeyD">▶</span><span></span><span data-dir="KeyS">▼</span><span></span></div>
-    <div id="ttop"><button data-key="KeyV">CAM</button><button data-key="KeyM">MAP</button><button data-key="KeyR">RST</button></div>
+    <div id="ttop"><button data-key="KeyV">CAM</button><button data-key="KeyM">MAP</button><button data-key="KeyL">PLAN</button><button data-key="KeyR">RST</button></div>
     <div id="tsprintwrap"><button id="tsprint">SPRINT</button></div>
-    <div id="tright"><button id="tjump">JUMP</button><div id="tflight" hidden><button id="tup">▲</button><button data-key="KeyC" id="tdown">▼</button></div></div>
+    <div id="tright"><button data-key="KeyP">PIN</button><button data-key="KeyU" hidden>AGREE</button><button id="tjump">JUMP</button><div id="tflight" hidden><button id="tup">▲</button><button data-key="KeyC" id="tdown">▼</button></div></div>
     <div id="rotate"><div>↻</div>Rotate your phone to landscape</div>
   </div>
-  <div class="hud panel" id="hint"><b>Click to start</b><kbd>W A S D</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> jump<br><kbd>F</kbd> fly &nbsp; <kbd>Space</kbd>/<kbd>C</kbd> up/down &nbsp; <kbd>V</kbd> camera &nbsp; <kbd>Esc</kbd> release mouse</div>
+  <div class="hud panel" id="hint"><b>Click to start</b><kbd>W A S D</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> jump<br><kbd>P</kbd> pin the spot under the crosshair &nbsp; <kbd>U</kbd> agree with a pin &nbsp; <kbd>L</kbd> planner panel<br><kbd>F</kbd> fly &nbsp; <kbd>Space</kbd>/<kbd>C</kbd> up/down &nbsp; <kbd>V</kbd> camera &nbsp; <kbd>Esc</kbd> release mouse</div>
 
+  <div class="modal" id="planner"><div id="planner-box" tabindex="-1">
+    <h2>Planner panel</h2>
+    <div id="pl-sum"></div>
+    <div id="pl-cats"></div>
+    <div id="pl-sortwrap">Sort <button id="pl-sort">Newest</button></div>
+    <div id="pl-list"></div>
+    <div id="pl-actions"><button id="pl-geojson">Export GeoJSON</button><button id="pl-csv">Export CSV</button><button id="pl-close">Close</button></div>
+  </div></div>
   <div class="modal" id="tp-wrap"><div id="tp-box"><h2>Teleport to an address</h2><input id="tp-input" placeholder="e.g. 290 Bremner Blvd, or Kensington Market" autocomplete="off" /><div id="tp-status"></div><div id="tp-landmarks"></div></div></div>
   <div class="modal" id="bigmap-wrap"><p>Click anywhere to teleport · Esc to close</p><canvas id="bigmap"></canvas></div>
+
+  <div id="reticle"></div>
+  <div class="hud panel" id="pin-prompt"></div>
+  <div class="modal" id="pin-compose"><div id="pin-box"><h2>Pin this spot</h2><p>What needs fixing where you are looking? Everyone in the city sees it, and planners can export it.</p><div id="pin-cats"></div><input id="pin-note" placeholder="Short note, e.g. no curb cut at this corner" autocomplete="off" spellcheck="false" /><div class="row"><span id="pin-bytes">0 / 48</span><button id="pin-cancel" class="ghost" type="button">Cancel</button><button id="pin-send" type="button">Place pin</button></div></div></div>
 
   <script src="/nozoom.js"></script>
   <script type="module" src="/src/main.ts"></script>

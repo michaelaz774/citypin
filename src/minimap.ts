@@ -1,11 +1,16 @@
 import type { CityData } from './geo';
 import type { Player } from './player';
+import { CATEGORY_COLOURS } from './pins';
 
-export interface Marker { x: number; z: number; kind: 'player'; heading?: number }
+export interface Marker { x: number; z: number; kind: 'player' | 'pin'; heading?: number; cat?: number }
 
-/** One map symbol: a player is a red dot with a white ring so it pops on any ground colour. */
+/** One map symbol: a player is a red dot with a white ring so it pops on any ground colour; a pin is a smaller dot in its category colour. */
 function drawMarker(c: CanvasRenderingContext2D, x: number, z: number, m: Marker, s: number) {
   c.lineJoin = 'round';
+  if (m.kind === 'pin') {
+    c.fillStyle = '#' + (CATEGORY_COLOURS[m.cat ?? 6] ?? 0x777777).toString(16).padStart(6, '0'); c.strokeStyle = '#111'; c.lineWidth = 1.5 * s;
+    c.beginPath(); c.arc(x, z, 4 * s, 0, 7); c.fill(); c.stroke(); return;
+  }
   c.fillStyle = '#ff3b30'; c.strokeStyle = '#fff'; c.lineWidth = 2 * s;
   c.beginPath(); c.arc(x, z, 5 * s, 0, 7); c.fill(); c.stroke();
 }
