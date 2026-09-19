@@ -127,7 +127,7 @@ async function main() {
   if (photo) player.flying = true;
   setLoading(''); enterBtn.disabled = false;
   enterBtn.onclick = () => {
-    entered = true; loading.classList.add('hide'); if (!mobile) (canvas.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => {}); // a browser that refuses the lock (headless, iframe) just runs unlocked
+    entered = true; loading.classList.add('hide'); document.body.classList.add('entered'); if (!mobile) (canvas.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => {}); // a browser that refuses the lock (headless, iframe) just runs unlocked
     const nm = nameInput.value.trim(); if (nm) localStorage.setItem('player_name', nm); else localStorage.removeItem('player_name');
     net.setName(nm); player.avatar.setName(net.name);
     hud.toast(mobile ? 'D-pad: move · drag: look · PIN: report the spot under the crosshair · double-tap JUMP: fly' : 'WASD move · click to pin the spot under the crosshair · U agree with a pin · P planner panel · F fly · M map', 6);
@@ -150,8 +150,16 @@ async function main() {
   const clock = new THREE.Clock();
   let frames = 0, fpsT = 0, edgeT = 0, reticleShown = false;
   const fpsEl = document.getElementById('fps')!, attribEl = document.getElementById('attrib-text')!, reticleEl = document.getElementById('reticle')!;
+  // attract mode: until the visitor enters, the landing page looks through to a slow orbit over downtown, nudged by the mouse
+  const ORBIT = { x: 200, z: -520, r: 640, alt: 330 }; let attractT = 0; const mouse = { x: 0, y: 0 };
+  window.addEventListener('pointermove', (e) => { mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = (e.clientY / innerHeight) * 2 - 1; });
   const frame = () => {
     const dt = Math.min(0.05, clock.getDelta());
+    if (!entered) {
+      attractT += dt; const a = attractT * 0.04 + mouse.x * 0.3, lift = photo ? 75 : 0; // photo tiles sit ~75 m up the ellipsoid
+      camera.position.set(ORBIT.x + Math.sin(a) * ORBIT.r, lift + ORBIT.alt - mouse.y * 40, ORBIT.z + Math.cos(a) * ORBIT.r);
+      camera.lookAt(ORBIT.x, lift + 30, ORBIT.z);
+    }
     if (tiles) {
       tiles.update(dt);
       if (landing) {

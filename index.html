@@ -7,13 +7,13 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>CityPin — report a street problem in downtown Toronto</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Manrope:wght@300;400;500&display=swap" />
   <style>
     :root { --ink: #111; --panel: rgba(255,255,255,.82); --accent: #ff3b30; }
     * { box-sizing: border-box; }
     html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
-    html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #bfd8ee; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
-    #game { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+    html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+    #game { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; cursor: crosshair; }
     .hud { position: fixed; pointer-events: none; user-select: none; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
     .panel { background: var(--panel); backdrop-filter: blur(6px); padding: 8px 12px; border-radius: 6px; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
     #topleft { top: 16px; left: 16px; }
@@ -32,54 +32,81 @@
     #hint.show { opacity: 1; }
     #hint b { font-size: 22px; display: block; text-transform: none; letter-spacing: 0; }
     #hint kbd { background: #111; color: #fff; padding: 1px 6px; border-radius: 3px; }
-    /* ---- landing / splash: a civic-services page, CityPin's own brand ---- */
-    #loading { position: fixed; inset: 0; z-index: 10; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: #fff; color: #222; font-family: Roboto, system-ui, -apple-system, sans-serif; font-size: 16px; line-height: 1.5; text-align: left; transition: opacity .4s; --cp-blue: #165788; --cp-amber: #EC9F09; --cp-grey: #ebebeb; --cp-line: #d5d5d5; }
+    /* ---- landing / splash: CityPin landing page ---- */
+    #loading { position: fixed; inset: 0; z-index: 10; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: transparent; color: #12110d; font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.5; text-align: left; transition: opacity .4s; --cp-heroend: #fdfaf5; --cp-ink: #12110d; --cp-grey: #6b6b6b; --cp-blue: #0098f6; --cp-line: #e5e5e5; --cp-card: #f7f7f7; --cp-cream: #faf6ef; --cp-orange: #fd9d24; }
     #loading.hide { opacity: 0; pointer-events: none; }
-    #loading .cp-wrap { max-width: 1100px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
-    #loading .cp-head { background: var(--cp-blue); color: #fff; }
-    #loading .cp-head .cp-wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding-top: 14px; padding-bottom: 14px; }
-    #loading .cp-brand { display: flex; align-items: center; gap: 8px; font-size: clamp(21px, 4.4vw, 28px); font-weight: 700; letter-spacing: .01em; }
-    #loading .cp-brand svg { width: 1.05em; height: 1.05em; flex: none; }
-    #loading .cp-headlink { font-size: 15px; color: #fff; }
-    #loading .cp-crumb { background: var(--cp-grey); border-bottom: 1px solid #dcdcdc; font-size: 14px; color: #555; }
-    #loading .cp-crumb .cp-wrap { padding-top: 11px; padding-bottom: 11px; }
-    #loading .cp-crumb b { color: var(--cp-blue); font-weight: 400; text-decoration: underline; }
-    #loading .cp-main { padding-bottom: 4px; }
-    #loading h1 { font-size: clamp(25px, 5.6vw, 36px); font-weight: 500; line-height: 1.15; color: #111; margin: clamp(18px, 4vw, 30px) 0 12px; }
-    #loading .cp-rule { border-top: 1px solid var(--cp-line); margin-bottom: 18px; }
-    #loading .cp-intro { max-width: 72ch; color: #333; margin-bottom: 20px; }
-    #loading .cp-panel { background: var(--cp-grey); padding: clamp(14px, 3vw, 20px); }
-    #loading .cp-panel label { display: block; font-size: 15px; color: #333; margin-bottom: 10px; }
-    #loading .cp-panelrow { display: flex; flex-wrap: wrap; gap: 10px; }
-    #loading #name-input { font: inherit; font-size: 16px; flex: 1 1 220px; min-width: 0; padding: 11px 12px; border: 1px solid #9a9a9a; border-radius: 0; background: #fff; color: #111; outline: none; }
-    #loading #name-input:focus { border-color: var(--cp-blue); box-shadow: 0 0 0 2px rgba(22,87,136,.3); }
-    #loading #enter { font: inherit; font-size: 18px; font-weight: 500; padding: 12px 30px; border: 0; border-radius: 0; background: var(--cp-blue); color: #fff; cursor: pointer; flex: 0 0 auto; }
-    #loading #enter:hover { background: #0f4269; }
+    #loading .cp-wrap { max-width: 1040px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+    #loading a { color: inherit; text-decoration: none; }
+    /* nav */
+    #loading .cp-nav { position: sticky; top: 0; z-index: 3; background: #fff; }
+    #loading .cp-nav .cp-wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
+    #loading .cp-brand { display: inline-flex; align-items: center; gap: 7px; font-family: Manrope, system-ui, sans-serif; font-size: 20px; font-weight: 500; letter-spacing: -.02em; color: var(--cp-ink); }
+    #loading .cp-brand svg { width: 19px; height: 19px; flex: none; }
+    #loading .cp-navlinks { display: flex; align-items: center; gap: 2px; background: #f2f2f2; border-radius: 100px; padding: 5px; }
+    #loading .cp-navlinks a { font-size: 14px; color: #434343; padding: 7px 13px; border-radius: 100px; transition: background .15s, color .15s; }
+    #loading .cp-navlinks a:hover { background: #fff; color: var(--cp-ink); }
+    #loading .cp-navacts { display: flex; align-items: center; gap: 8px; }
+    /* pills */
+    #loading .cp-pill { display: inline-flex; align-items: center; justify-content: center; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-weight: 500; line-height: 1; padding: 12px 19px; border-radius: 100px; white-space: nowrap; cursor: pointer; transition: background .15s, border-color .15s; }
+    #loading .cp-pill-primary { background: var(--cp-blue); color: #fff; border: 1px solid var(--cp-blue); }
+    #loading .cp-pill-primary:hover { background: #0086dc; border-color: #0086dc; }
+    #loading .cp-pill-ghost { background: #fff; color: var(--cp-ink); border: 1px solid var(--cp-line); }
+    #loading .cp-pill-ghost:hover { border-color: #c4c4c4; }
+    #loading .cp-tag { display: inline-flex; align-items: center; font-size: 14px; color: #434343; background: #fff; border: 1px solid var(--cp-line); border-radius: 100px; padding: 10px 17px; white-space: nowrap; }
+    /* hero */
+    #loading .cp-hero { padding-bottom: clamp(26px, 5vw, 58px); background: linear-gradient(180deg, var(--cp-cream) 0%, var(--cp-cream) 42%, var(--cp-heroend) 100%); padding-top: clamp(44px, 7vw, 92px); text-align: center; }
+    #loading h1 { font-family: Manrope, system-ui, sans-serif; font-weight: 400; font-size: clamp(34px, 6.6vw, 64px); line-height: 1; letter-spacing: -.04em; color: var(--cp-ink); margin: 0 auto 22px; max-width: 660px; }
+    #loading .cp-sub { font-size: clamp(16px, 2.2vw, 18px); color: var(--cp-grey); max-width: 620px; margin: 0 auto; }
+    #loading .cp-herobtns { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: clamp(24px, 3.4vw, 34px); }
+    /* live 3D cutout: the only transparent region of the overlay */
+    #loading .cp-live { position: relative; width: 100%; height: clamp(340px, 56vw, 680px); background: none; pointer-events: none; }
+    #loading .cp-live::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 120px; background: linear-gradient(180deg, var(--cp-heroend) 0%, rgba(253,250,245,0) 100%); }
+    #loading .cp-live::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 80px; background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 100%); }
+    /* sections */
+    #loading .cp-sec { padding-top: clamp(64px, 10vw, 120px); background: #fff; }
+    #loading .cp-headrow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: clamp(22px, 3.2vw, 36px); }
+    #loading .cp-h2 { font-family: Manrope, system-ui, sans-serif; font-weight: 300; font-size: clamp(28px, 4.8vw, 40px); line-height: 1.08; letter-spacing: -.02em; color: var(--cp-ink); margin: 0; }
+    /* cards */
+    #loading .cp-card { background: var(--cp-card); border-radius: 24px; padding: 24px; }
+    #loading .cp-stack { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+    #loading .cp-shot { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; border-radius: 16px; background: #e9e9e9; }
+    #loading .cp-cardtitle { font-family: Manrope, system-ui, sans-serif; font-weight: 500; font-size: clamp(21px, 3.4vw, 32px); line-height: 1.15; letter-spacing: -.02em; color: var(--cp-ink); margin: 20px 0 6px; }
+    #loading .cp-meta { font-size: 14px; color: var(--cp-grey); }
+    #loading .cp-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    #loading .cp-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    #loading .cp-num { font-family: Manrope, system-ui, sans-serif; font-weight: 300; font-size: 40px; line-height: 1; letter-spacing: -.03em; color: var(--cp-ink); }
+    #loading .cp-cardh { font-family: Manrope, system-ui, sans-serif; font-weight: 500; font-size: 20px; letter-spacing: -.02em; color: var(--cp-ink); margin: 16px 0 6px; }
+    #loading .cp-cardh .cp-sdg { color: var(--cp-orange); }
+    #loading .cp-cardtext { font-size: 15px; color: #4a4a4a; }
+    /* stats */
+    #loading .cp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 34px; border-top: 1px solid var(--cp-line); padding-top: 30px; }
+    #loading .cp-statnum { font-family: Manrope, system-ui, sans-serif; font-weight: 300; font-size: clamp(30px, 4.6vw, 44px); line-height: 1; letter-spacing: -.03em; color: var(--cp-ink); }
+    #loading .cp-statlab { font-size: 14px; color: var(--cp-grey); margin-top: 8px; }
+    /* two-column statement */
+    #loading .cp-two { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(24px, 5vw, 64px); align-items: start; }
+    #loading .cp-statement { font-family: Manrope, system-ui, sans-serif; font-weight: 300; font-size: clamp(26px, 4.4vw, 40px); line-height: 1.1; letter-spacing: -.02em; color: var(--cp-ink); }
+    #loading .cp-body { font-size: clamp(16px, 2.2vw, 18px); color: #4a4a4a; line-height: 1.62; }
+    /* start panel */
+    #loading .cp-label { display: block; font-size: 14px; color: var(--cp-grey); margin-bottom: 10px; }
+    #loading .cp-formrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    #loading #name-input { font-family: inherit; font-size: 16px; flex: 1 1 220px; min-width: 0; max-width: 320px; padding: 13px 18px; border: 1px solid var(--cp-line); border-radius: 100px; background: #fff; color: var(--cp-ink); outline: none; }
+    #loading #name-input::placeholder { color: #a3a3a3; }
+    #loading #name-input:focus { border-color: var(--cp-blue); box-shadow: 0 0 0 3px rgba(0,152,246,.16); }
+    #loading #enter { font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1; padding: 13px 22px; border: 1px solid var(--cp-blue); border-radius: 100px; background: var(--cp-blue); color: #fff; cursor: pointer; flex: 0 0 auto; }
+    #loading #enter:hover { background: #0086dc; }
     #loading #enter[hidden] { display: none; }
-    #loading #enter:disabled { opacity: .55; cursor: progress; }
-    #loading p { margin: 12px 0 0; font-size: 14px; color: #555; }
-    #loading .cp-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: clamp(22px, 4vw, 32px) 0; }
-    #loading .cp-tile { display: flex; flex-direction: column; border: 1px solid var(--cp-line); }
-    #loading .cp-tile-ico { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: 20px 10px; background: var(--cp-grey); color: #111; }
-    #loading .cp-tile-ico svg { width: 40px; height: 40px; }
-    #loading .cp-tile-label { background: var(--cp-blue); color: #fff; text-align: center; padding: 13px 10px; font-size: 16px; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
-    #loading .cp-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(20px, 4vw, 44px); border-top: 1px solid var(--cp-line); padding-top: clamp(20px, 3vw, 28px); }
-    #loading .cp-h2 { font-size: clamp(20px, 3.4vw, 24px); font-weight: 500; color: #111; margin: 0 0 10px; }
-    #loading .cp-h3 { font-size: 16px; font-weight: 700; color: #111; margin: 24px 0 8px; }
-    #loading ol { margin: 0; padding-left: 20px; }
-    #loading ol li { margin-bottom: 8px; font-size: 15px; color: #333; }
-    #loading .cp-cats { list-style: none; margin: 0; padding: 0; border-top: 1px solid #e3e3e3; }
-    #loading .cp-cats li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e3e3e3; font-size: 15px; color: #333; }
-    #loading .cp-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--d, #7d7d7d); }
-    #loading .cp-ctrl { font-size: 14px; color: #555; line-height: 1.7; }
+    #loading #enter:disabled { opacity: .5; cursor: progress; }
+    #loading p { margin: 14px 0 0; font-size: 14px; color: var(--cp-grey); }
+    #loading .cp-ctrl { margin-top: 16px; padding-top: 16px; border-top: 1px solid #ececec; font-size: 13px; color: var(--cp-grey); }
     #loading #ctrl-mobile { display: none; }
     body.touch #loading #ctrl-desktop { display: none; }
     body.touch #loading #ctrl-mobile { display: block; }
-    #loading kbd { background: #fff; border: 1px solid #b9b9b9; border-bottom-width: 2px; border-radius: 3px; color: var(--cp-blue); font: 700 .86em/1 ui-monospace, Menlo, monospace; padding: 2px 5px; }
-    #loading .cp-foot { background: var(--cp-grey); border-top: 1px solid var(--cp-line); color: #555; font-size: 13px; margin-top: clamp(22px, 4vw, 34px); }
-    #loading .cp-foot .cp-wrap { padding-top: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-    @media (max-width: 780px) { #loading .cp-tiles { grid-template-columns: repeat(2, 1fr); } #loading .cp-cols { grid-template-columns: 1fr; } }
-    @media (max-width: 430px) { #loading .cp-tiles { grid-template-columns: 1fr; } }
+    /* footer */
+    #loading .cp-foot { background: #fff; padding-top: clamp(64px, 10vw, 120px); }
+    #loading .cp-foot .cp-wrap { border-top: 1px solid var(--cp-line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding-top: 26px; padding-bottom: max(34px, env(safe-area-inset-bottom)); font-size: 13px; color: var(--cp-grey); }
+    @media (max-width: 900px) { #loading .cp-navlinks { display: none; } }
+    @media (max-width: 760px) { #loading .cp-grid3, #loading .cp-grid2, #loading .cp-two { grid-template-columns: 1fr; } #loading .cp-stats { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 460px) { #loading .cp-pill { padding: 11px 14px; font-size: 13px; } #loading .cp-brand { font-size: 18px; } #loading .cp-card { padding: 18px; border-radius: 20px; } }
     #players { position: fixed; top: 16px; right: 16px; }
     #fps { position: fixed; top: 46px; right: 16px; }
     #attrib { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: none; letter-spacing: 0; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
@@ -145,7 +172,7 @@
     #tsprint.on { background: #ff9500; border-color: #ff9500; color: #111; }
     #rotate { display: none; position: fixed; inset: 0; z-index: 20; background: #0e141b; color: #fff; font: 700 18px/1.4 ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; }
     #rotate div { font-size: 64px; }
-    @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+    @media (orientation: portrait) { body.touch.entered #rotate { display: flex; } } /* the landing page reads fine in portrait; the city wants landscape */
     #ttop { position: absolute; top: max(60px, calc(env(safe-area-inset-top) + 52px)); right: max(12px, env(safe-area-inset-right)); display: flex; flex-direction: column; gap: 8px; }
     #ttop button { width: 46px; height: 40px; font-size: 11px; }
     body.touch #game { height: 100dvh; }
@@ -160,6 +187,7 @@
     body.touch #minimap { width: 96px; height: 96px; }
     body.touch #attrib { bottom: max(2px, env(safe-area-inset-bottom)); }
     /* ---- pins: the always-on crosshair, the compose dialog, the "agree" prompt ---- */
+    body:not(.entered) .hud, body:not(.entered) #planner-btn, body:not(.entered) #hint, body:not(.entered) #reticle, body:not(.entered) #touch { display: none !important; } /* the landing page looks through to the city; the HUD waits for entry */
     #reticle { position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; opacity: 0; transition: opacity .15s; pointer-events: none; z-index: 3; filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000); }
     #reticle::before, #reticle::after { content: ''; position: absolute; background: #fff; }
     #reticle::before { left: 50%; top: 0; width: 2px; height: 100%; margin-left: -1px; }
@@ -196,77 +224,146 @@
   <canvas id="game"></canvas>
 
   <div id="loading">
-    <div class="cp-head"><div class="cp-wrap">
-      <div class="cp-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 23s8-8.4 8-14a8 8 0 1 0-16 0c0 5.6 8 14 8 14Z"/><circle cx="12" cy="9" r="3" fill="#165788"/></svg>CityPin</div>
-      <div class="cp-headlink">Open data · GeoJSON export</div>
-    </div></div>
+    <nav class="cp-nav"><div class="cp-wrap">
+      <a class="cp-brand" href="#start"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 23s8-8.4 8-14a8 8 0 1 0-16 0c0 5.6 8 14 8 14Z"/><circle cx="12" cy="9" r="3" fill="#fff"/></svg>CityPin</a>
+      <div class="cp-navlinks">
+        <a href="#how">How it works</a>
+        <a href="#why311">Why not 311</a>
+        <a href="#sdg">SDG 11</a>
+        <a href="#planners">Planners</a>
+        <a href="#opendata">Open data</a>
+      </div>
+      <div class="cp-navacts">
+        <a class="cp-pill cp-pill-ghost" href="https://github.com/michaelaz774/citypin" target="_blank" rel="noopener">GitHub</a>
+        <a class="cp-pill cp-pill-primary" href="#start">Walk the city</a>
+      </div>
+    </div></nav>
 
-    <div class="cp-crumb"><div class="cp-wrap"><b>CityPin</b> &nbsp;/&nbsp; Report a street problem</div></div>
+    <header class="cp-hero">
+      <div class="cp-wrap">
+        <h1>Pin the spot where the street fails.</h1>
+        <div class="cp-sub">Walk downtown Toronto in 3D, stand where the curb cut is missing or the crossing feels unsafe, and leave a note there. No meeting, no form.</div>
+        <div class="cp-herobtns">
+          <a class="cp-pill cp-pill-primary" href="#start">Walk the city</a>
+          <a class="cp-pill cp-pill-ghost" href="#how">How it works</a>
+        </div>
+      </div>
+    </header>
+    <div class="cp-live" aria-hidden="true"></div>
 
-    <div class="cp-wrap cp-main">
-      <h1>Report a street problem</h1>
-      <div class="cp-rule"></div>
-      <div class="cp-intro">CityPin lets you walk downtown Toronto in 3D and leave a note standing exactly where the street fails — no meeting, no form. Pins sync live to everyone and planners can export them straight into their GIS.</div>
-
-      <div class="cp-panel">
-        <label for="name-input">Your name (optional)</label>
-        <div class="cp-panelrow">
+    <section class="cp-sec" id="start"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">Start walking.</h2><span class="cp-tag">Free · no account</span></div>
+      <div class="cp-card">
+        <label class="cp-label" for="name-input">Your name (optional)</label>
+        <div class="cp-formrow">
           <input id="name-input" maxlength="12" placeholder="Resident" autocomplete="nickname" spellcheck="false" />
           <button id="enter" hidden>Walk the city</button>
         </div>
+        <p>Loading downtown Toronto…</p>
+        <div class="cp-ctrl" id="ctrl-desktop">WASD move · mouse look · click to pin · U agree · P planner panel · M map · F fly</div>
+        <div class="cp-ctrl" id="ctrl-mobile">d-pad move · drag look · PIN and AGREE buttons</div>
       </div>
-      <p>Loading downtown Toronto…</p>
+    </div></section>
 
-      <div class="cp-tiles">
-        <div class="cp-tile">
-          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg></div>
-          <div class="cp-tile-label">Walk &amp; aim</div>
+    <section class="cp-sec" id="how"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">How it works.</h2><span class="cp-tag">Three steps</span></div>
+      <div class="cp-grid3">
+        <div class="cp-card">
+          <div class="cp-num">1</div>
+          <div class="cp-cardh">Walk</div>
+          <div class="cp-cardtext">First-person downtown Toronto, straight in the browser.<br />Photorealistic tiles, or the free OpenStreetMap city.</div>
         </div>
-        <div class="cp-tile">
-          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12a7 7 0 1 0-14 0c0 4.6 7 12 7 12Z"/><circle cx="12" cy="10" r="2.6"/></svg></div>
-          <div class="cp-tile-label">Click to drop a pin</div>
+        <div class="cp-card">
+          <div class="cp-num">2</div>
+          <div class="cp-cardh">Pin</div>
+          <div class="cp-cardtext">Click where you are looking, pick one of seven categories — accessibility, safety, flooding, no shade, transit, green space, other.<br />Add a note of up to 48 characters.</div>
         </div>
-        <div class="cp-tile">
-          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.6 11.3 2A2.6 2.6 0 0 1 14 4.7V9h4.6a2.4 2.4 0 0 1 2.36 2.87l-1.28 6.4A2.6 2.6 0 0 1 17.13 20.4H7"/><rect x="2.6" y="10.2" width="4.4" height="10.2" rx="1"/></svg></div>
-          <div class="cp-tile-label">Agree with a pin (U)</div>
-        </div>
-        <div class="cp-tile">
-          <div class="cp-tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="3.6" width="18.8" height="16.8" rx="1.5"/><path d="M2.6 8.2h18.8M7 17.2v-5M12 17.2v-7M17 17.2v-3"/></svg></div>
-          <div class="cp-tile-label">Planner panel (P)</div>
-        </div>
-      </div>
-
-      <div class="cp-cols">
-        <div>
-          <div class="cp-h2">How it works</div>
-          <ol>
-            <li>Walk downtown Toronto in first person, straight in the browser.</li>
-            <li>Aim the crosshair at the spot that is failing.</li>
-            <li>Click, pick a category, and type up to 48 characters.</li>
-            <li>Everyone walking the city sees your pin instantly.</li>
-            <li>Walk past someone else's pin and press <kbd>U</kbd> to agree with it.</li>
-            <li>Planners press <kbd>P</kbd> and export the ranked list as GeoJSON or CSV.</li>
-          </ol>
-        </div>
-        <div>
-          <div class="cp-h2">Categories</div>
-          <ul class="cp-cats">
-            <li><span class="cp-dot" style="--d:#2f6fdb"></span>Accessibility</li>
-            <li><span class="cp-dot" style="--d:#e5322d"></span>Safety</li>
-            <li><span class="cp-dot" style="--d:#1aa3a3"></span>Flooding</li>
-            <li><span class="cp-dot" style="--d:#f2a900"></span>No shade</li>
-            <li><span class="cp-dot" style="--d:#7a3fd1"></span>Transit</li>
-            <li><span class="cp-dot" style="--d:#2e9e4f"></span>Green space</li>
-            <li><span class="cp-dot" style="--d:#7d7d7d"></span>Other</li>
-          </ul>
-          <div class="cp-h3">Controls</div>
-          <div class="cp-ctrl" id="ctrl-desktop"><kbd>WASD</kbd> move · mouse look · <kbd>Click</kbd> pin · <kbd>U</kbd> agree · <kbd>P</kbd> planner · <kbd>M</kbd> map · <kbd>T</kbd> address · <kbd>F</kbd> fly</div>
-          <div class="cp-ctrl" id="ctrl-mobile">d-pad move · drag look · PIN and AGREE buttons</div>
+        <div class="cp-card">
+          <div class="cp-num">3</div>
+          <div class="cp-cardh">Agree</div>
+          <div class="cp-cardtext">Walk past someone else's pin and press U.<br />Votes turn one complaint into a signal.</div>
         </div>
       </div>
-    </div>
+      <div class="cp-stats">
+        <div><div class="cp-statnum">7</div><div class="cp-statlab">categories</div></div>
+        <div><div class="cp-statnum">48</div><div class="cp-statlab">characters per note</div></div>
+        <div><div class="cp-statnum">1</div><div class="cp-statlab">click to report</div></div>
+        <div><div class="cp-statnum">0</div><div class="cp-statlab">accounts</div></div>
+      </div>
+    </div></section>
 
-    <div class="cp-foot"><div class="cp-wrap">Built for SDG 11.3 · City data © OpenStreetMap contributors · Photorealistic tiles © Google · Not affiliated with the City of Toronto.</div></div>
+    <section class="cp-sec" id="why311"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">Why not just call 311?</h2><span class="cp-tag">Complement, not replacement</span></div>
+      <div class="cp-two">
+        <div class="cp-statement">311 reports a defect where you are standing, now.</div>
+        <div class="cp-body">It cannot carry an opinion about a place you are afraid to walk to, or about a bike lane that doesn't exist yet. A comment form strips out the exact spot, the sightline and the scale. CityPin keeps all three: a pin carries coordinates, a category and the view you had when you left it, and it exports straight into the GIS a city already runs — or into the 311 queue as a georeferenced request.</div>
+      </div>
+      <div class="cp-stack">
+        <div class="cp-card">
+          <img class="cp-shot" src="/img/toronto-1.jpg" alt="A busy Toronto street crossing" loading="lazy" />
+          <div class="cp-cardtitle">The crossing at Queen and Spadina</div>
+          <div class="cp-meta">Safety · what a resident sees, not a defect code</div>
+        </div>
+        <div class="cp-card">
+          <img class="cp-shot" src="/img/toronto-2.jpg" alt="A Toronto sidewalk ending at a curb with no ramp" loading="lazy" />
+          <div class="cp-cardtitle">A sidewalk with no curb cut</div>
+          <div class="cp-meta">Accessibility · AODA committees audit these with clipboards today</div>
+        </div>
+        <div class="cp-card">
+          <img class="cp-shot" src="/img/toronto-3.jpg" alt="A dark Toronto railway underpass" loading="lazy" />
+          <div class="cp-cardtitle">The underpass people avoid after dark</div>
+          <div class="cp-meta">Safety · a place you don't walk to cannot be reported from</div>
+        </div>
+        <div class="cp-card">
+          <img class="cp-shot" src="/img/toronto-4.jpg" alt="An open Toronto park with no shaded seating" loading="lazy" />
+          <div class="cp-cardtitle">A park with nowhere to sit in the shade</div>
+          <div class="cp-meta">No shade · green space · public space that fails in practice</div>
+        </div>
+      </div>
+    </div></section>
+
+    <section class="cp-sec" id="sdg"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">Built for SDG 11.</h2><span class="cp-tag">UN Sustainable Development Goal 11</span></div>
+      <div class="cp-grid3">
+        <div class="cp-card">
+          <div class="cp-cardh"><span class="cp-sdg">11.3</span> · Inclusive, participatory urbanization</div>
+          <div class="cp-cardtext">Consultation stops selecting for who is free on a Tuesday evening. Older people, disabled people, shift workers and parents report from home, standing in the spot.</div>
+        </div>
+        <div class="cp-card">
+          <div class="cp-cardh"><span class="cp-sdg">11.2</span> · Accessible transport for all</div>
+          <div class="cp-cardtext">Pins mark the barriers on the way to transit: missing curb cuts, blocked sidewalks, no seating at the stop.</div>
+        </div>
+        <div class="cp-card">
+          <div class="cp-cardh"><span class="cp-sdg">11.7</span> · Safe, inclusive public space</div>
+          <div class="cp-cardtext">Dark underpasses, unshaded waits and unusable parks get a location, a category and a count.</div>
+        </div>
+      </div>
+    </div></section>
+
+    <section class="cp-sec" id="planners"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">For planners.</h2><span class="cp-tag">GeoJSON · CSV</span></div>
+      <div class="cp-grid2">
+        <div class="cp-card">
+          <div class="cp-cardh">A ranked map, not a comment pile</div>
+          <div class="cp-cardtext">Press P for the planner panel: every pin with category, note, votes, distance and age. Filter and sort, then click a row to teleport to it.</div>
+        </div>
+        <div class="cp-card">
+          <div class="cp-cardh">Opens in the GIS you already run</div>
+          <div class="cp-cardtext">Export a GeoJSON FeatureCollection (longitude, latitude) or a CSV. No procurement, no integration project.</div>
+        </div>
+      </div>
+      <div class="cp-meta" style="margin-top:16px">Limitations: building heights outside the core are OSM defaults; pins are unauthenticated; moderation is not built.</div>
+    </div></section>
+
+    <section class="cp-sec" id="opendata"><div class="cp-wrap">
+      <div class="cp-headrow"><h2 class="cp-h2">Open by default.</h2><span class="cp-tag">OpenStreetMap · CC0 characters</span></div>
+      <div class="cp-card"><div class="cp-body">City data comes from OpenStreetMap and the engine is open source, so any city with OSM buildings can be stood up by re-running the fetch script against a new bounding box.</div></div>
+    </div></section>
+
+    <footer class="cp-foot"><div class="cp-wrap">
+      <div>CityPin · a hackathon project · Not affiliated with the City of Toronto <span id="cp-credits">Photos: <a href="https://commons.wikimedia.org/wiki/File:TTC_501_ALRV_4207_at_Bathurst_and_Queen_August_10,_2013.JPG" target="_blank" rel="noopener">Fairlyoddparents1234</a> (CC BY-SA 3.0) · <a href="https://commons.wikimedia.org/wiki/File:Buildings_in_Kensington_Market,_Toronto_2026.jpg" target="_blank" rel="noopener">Chicken4War</a> (CC BY-SA 4.0) · <a href="https://commons.wikimedia.org/wiki/File:Underpass_Park_(22278204402).jpg" target="_blank" rel="noopener">Kevin Costain</a> (CC BY 2.0) · <a href="https://commons.wikimedia.org/wiki/File:Trinity_Bellwood_Park_-_CN_Tower_in_Background.jpg" target="_blank" rel="noopener">Maniacduhockey</a> (CC BY-SA 4.0), via Wikimedia Commons</span></div>
+      <div>Photorealistic tiles © Google · City data © OpenStreetMap contributors</div>
+    </div></footer>
   </div>
   <div class="hud" id="attrib" hidden><img alt="Google" src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" height="19" /> <span id="attrib-text">Map data: Google</span></div>
 
